@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Documents · TransitPass</title>
+<meta name="description" content="Upload, preview and replace your licence and ID, and track verification and expiry.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/driver.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Driver</p>
+      <h1>My Documents</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Upload, preview and replace your licence and ID, and track verification and expiry.</p>
+    </header>
+    <div class="page stack">
+      <div id="banners"></div>
+      <section class="dp-docs" id="docs" aria-label="My documents"></section>
+      <article class="card dp-in"><div class="dp-head"><div><h2>Earlier uploads</h2><p class="sub">Replaced documents are kept for your records.</p></div></div>
+        <div class="table-wrap"><table class="dp-table"><thead><tr><th>Document</th><th>Number</th><th>Uploaded</th><th>Expires</th><th>Status</th><th>Administrator remarks</th><th></th></tr></thead><tbody id="hist"></tbody></table></div></article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/driver.js"></script>
+<script src="js/camera-capture.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["driver"]))) return;
+  const $ = (id) => document.getElementById(id);
+  let data = null;
+  const ICON = { license: "id", government_id: "doc" };
+  function card(d, i) {
+    const tone = d.status === "verified" ? "ok" : d.status === "pending" ? "warn" : d.status === "missing" ? "" : "bad";
+    const has = !!d.id;
+    return `<article class="card dp-doc ${tone} dp-in" style="--i:${i}"><div class="top"><div class="ico">${dpIcon(ICON[d.type])}</div><div><h3>${esc(d.typeLabel)}</h3><p>${has ? esc(d.fileName || "Uploaded file") + " · " + dpBytes(d.sizeBytes) : "Not uploaded yet"}</p></div>${dpDocChip(d.status)}</div>
+      ${has ? `<dl class="dp-kv"><div><dt>Document no.</dt><dd class="mono">${esc(d.documentNo || "—")}</dd></div><div><dt>Uploaded</dt><dd>${fmtDate(d.uploadedAt)}</dd></div><div><dt>Reviewed</dt><dd>${d.reviewedAt ? fmtDate(d.reviewedAt) : "Waiting"}</dd></div></dl>${dpExpiry(d)}` : `<div class="dp-info">${dpIcon("info").replace("<svg", '<svg style="width:1.1rem;height:1.1rem;flex:none;stroke:currentColor;fill:none;stroke-width:2"')}<span>Upload a clear PDF, JPG or PNG so the administrator can verify it.</span></div>`}
+      ${d.status === "rejected" ? `<div class="dp-remarks">${dpIcon("alert")}<div><b>Administrator remarks</b>${esc(d.remarks || "No reason was recorded.")}</div></div>` : ""}
+      ${d.status === "pending" ? `<div class="dp-info"><span>Submitted. An administrator will review it soon.</span></div>` : ""}
+      ${d.status === "verified" && d.note ? `<div class="dp-info"><span>${esc(d.note)}</span></div>` : ""}
+      <div class="dp-actions">${has ? `<button type="button" data-prev="${d.id}">Preview</button>` : ""}<button type="button" class="primary" data-up="${d.type}">${has ? "Replace document" : "Upload document"}</button></div></article>`;
+  }
+  function paint() {
+    $("docs").innerHTML = data.items.map(card).join("");
+    const b = [];
+    data.items.forEach((x) => { if (x.expiryState === "expiring") b.push(["warn", `${x.typeLabel} expires in ${x.daysToExpiry} day${x.daysToExpiry === 1 ? "" : "s"}`, "Upload the renewed copy before it expires."]); if (x.status === "expired") b.push(["bad", `${x.typeLabel} has expired`, "Upload a valid copy."]); });
+    if (data.verification === "verified") b.push(["ok", "All documents verified", "You are fully verified."]);
+    $("banners").innerHTML = b.map(([c, t, m]) => `<div class="dp-banner ${c}"><div><b>${esc(t)}</b>${esc(m)}</div></div>`).join("");
+    $("hist").innerHTML = data.history.length ? data.history.map((h) => `<tr><td>${esc(h.typeLabel)}</td><td class="mono">${esc(h.documentNo || "—")}</td><td>${fmtDate(h.uploadedAt)}</td><td>${h.expiresOn ? dpYmd(h.expiresOn) : "—"}</td><td>${dpDocChip(h.status)}</td><td style="white-space:normal;min-width:12rem">${esc(h.remarks || "—")}</td><td><button type="button" data-prev="${h.id}">Preview</button></td></tr>`).join("") : `<tr><td colspan="7">${dpEmpty("doc", "No earlier uploads", "Replaced documents will appear here.")}</td></tr>`;
+  }
+  async function load() { data = await api("/driver/documents"); paint(); }
+  const find = (id) => [...data.items, ...data.history].find((x) => String(x.id) === String(id));
+  document.addEventListener("click", (e) => {
+    const p = e.target.closest("[data-prev]"); if (p) { const d = find(p.dataset.prev); if (d) dpPreviewDocument(d); return; }
+    const u = e.target.closest("[data-up]"); if (u) openUpload(data.items.find((x) => x.type === u.dataset.up));
+  });
+  function openUpload(d) {
+    const dlg = dpModal("dpUpload", (d.id ? "Replace " : "Upload ") + d.typeLabel);
+    const body = dlg.querySelector(".body"), foot = dlg.querySelector(".foot"); foot.hidden = false;
+    const needsExp = d.type === "license";
+    body.innerHTML = `<form id="upForm" novalidate>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
+        <button type="button" class="primary" id="takePhoto" style="flex:1;min-width:140px">${dpIcon("camera")} Take Photo</button>
+        <label class="dp-drop" id="drop" style="flex:1;min-width:140px"><input type="file" id="upFile" accept="image/*,.pdf" capture="environment"><div id="dropTxt"><b>Choose file or drop here</b><span>PDF, JPG or PNG</span></div></label>
+      </div>
+      <div class="field-row two" style="margin-top:1rem"><div class="field"><label for="upNo">Document number</label><input id="upNo" maxlength="60" value="${esc(d.documentNo || "")}"></div><div class="field"><label for="upExp">Expiry date${needsExp ? " (required)" : " (if any)"}</label><input id="upExp" type="date" min="${new Date().toISOString().slice(0, 10)}"></div></div>
+      <p class="dp-msg" id="upMsg" role="alert"></p>${d.id ? '<p class="muted" style="font-size:.8rem;margin:0">The new file replaces the current one and goes back to <b>pending review</b>. The old file is kept in your history.</p>' : ""}</form>`;
+    foot.innerHTML = `<button type="button" data-close>Cancel</button><button type="button" class="primary" id="upGo">Upload</button>`;
+
+    const cameraCapture = window.TPCameraCapture.create();
+    const takePhotoBtn = body.querySelector("#takePhoto");
+    const f = body.querySelector("#upFile"), msg = body.querySelector("#upMsg"), drop = body.querySelector("#drop");
+    let selectedFile = null;
+    let selectedFileName = "";
+
+    const showFile = (file) => {
+      selectedFile = file;
+      selectedFileName = file.name;
+      const img = file.type.startsWith("image/") ? `<img alt="" src="${URL.createObjectURL(file)}">` : dpIcon("doc").replace("<svg", '<svg style="width:2.4rem;height:2.4rem;stroke:var(--royal);fill:none;stroke-width:1.6"');
+      body.querySelector("#dropTxt").outerHTML = `<div class="picked" id="dropTxt">${img}<div><b>${esc(file.name)}</b><span>${dpBytes(file.size)} · click to change</span></div></div>`;
+    };
+
+    takePhotoBtn.onclick = async () => {
+      takePhotoBtn.disabled = true;
+      takePhotoBtn.innerHTML = '<span class="dp-spin"></span> Opening camera…';
+      const file = await cameraCapture.open();
+      takePhotoBtn.disabled = false;
+      takePhotoBtn.innerHTML = `${dpIcon("camera")} Take Photo`;
+      if (file) {
+        showFile(file);
+      }
+    };
+
+    const show = () => { const file = f.files[0]; if (!file) return; showFile(file); };
+    f.onchange = show;
+    ["dragover", "dragenter"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+    ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove("over")));
+    drop.addEventListener("drop", (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) { f.files = e.dataTransfer.files; show(); } });
+
+    foot.querySelector("#upGo").onclick = async (e) => {
+      msg.className = "dp-msg err"; msg.textContent = "";
+      const file = selectedFile || f.files[0];
+      const exp = body.querySelector("#upExp").value;
+      if (!file) { msg.textContent = "Choose a file or take a photo first."; return; }
+      if (!/\.(pdf|jpe?g|png)$/i.test(file.name)) { msg.textContent = "The file must be a PDF, JPG or PNG."; return; }
+      if (needsExp && !exp) { msg.textContent = "Enter the licence expiry date."; return; }
+      const fd = new FormData(); fd.append("type", d.type); fd.append("documentNo", body.querySelector("#upNo").value.trim()); if (exp) fd.append("expiresOn", exp); fd.append("file", file);
+      e.target.disabled = true; e.target.innerHTML = '<span class="dp-spin"></span>Uploading…';
+      try { await api("/driver/documents", { method: "POST", body: fd }); dlg.close(); showToast("Document uploaded. It is now waiting for review."); await load(); }
+      catch (x) { msg.textContent = errText(x); e.target.disabled = false; e.target.textContent = "Upload"; }
+    };
+    dlg.showModal();
+  }
+  try { await load(); } catch (e) { showToast(errText(e)); }
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

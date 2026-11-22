@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scan History · TransitPass</title>
+<meta name="description" content="Every verification attempt by every driver, including failed ones, with daily totals and email notifications the system sent.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Scan History</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Every verification attempt by every driver, including failed ones, with daily totals and email notifications the system sent.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div class="section-title"><h2 style="font-size:1.05rem">Daily passenger records (last 14 days)</h2></div>
+        <div class="table-wrap" style="margin-bottom:1rem"><table>
+          <thead><tr><th>Day</th><th>Passengers scanned</th><th>Successful</th><th>Unsuccessful</th><th>Flagged</th></tr></thead><tbody id="daily"></tbody></table></div>
+      </article>
+      <article class="card">
+        <div class="section-title"><h2 style="font-size:1.05rem">All scan history</h2></div>
+        <div class="row" style="margin-bottom:1rem">
+          <div style="flex:1;min-width:220px"><input id="q" placeholder="Search student, School ID, driver or route" aria-label="Search scan history" maxlength="60"></div>
+          <div style="width:190px"><select id="code" aria-label="Filter by verification result">
+            <option value="all">All results</option><option value="VERIFIED_STUDENT">Verified student</option><option value="PENDING_VERIFICATION">Pending verification</option>
+            <option value="INVALID_QR">Invalid QR code</option><option value="REVOKED_QR">Revoked QR code</option><option value="EXPIRED_QR">Expired QR code</option>
+            <option value="REJECTED_STUDENT">Rejected student</option><option value="FLAGGED_REVIEW">Flagged – review</option></select></div>
+          <div style="width:190px"><select id="driverId" aria-label="Filter by driver"><option value="">All drivers</option></select></div>
+          <div style="width:140px"><select id="method" aria-label="Filter by method"><option value="all">QR + manual</option><option value="qr">QR scan</option><option value="manual">Manual ID</option></select></div>
+          <div style="width:150px"><input id="from" type="date" aria-label="From date"></div>
+          <div style="width:150px"><input id="to" type="date" aria-label="To date"></div>
+        </div>
+        <div class="section-title"><span class="label-caps muted" id="count"></span></div>
+        <div id="rows"></div>
+        <div class="row" style="margin-top:1rem;justify-content:center"><button id="more" hidden>Load more</button></div>
+      </article>
+      <article class="card">
+        <div class="section-title"><h2 style="font-size:1.05rem">Email notifications</h2></div>
+        <div id="emails"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+
+  const drv = await api("/admin/drivers?limit=100");
+  document.getElementById("driverId").insertAdjacentHTML("beforeend", drv.items.map((d) => `<option value="${d.id}">${esc(d.name)}</option>`).join(""));
+
+  const PAGE = 25; let offset = 0;
+  const f = (id) => document.getElementById(id);
+  function query() {
+    const p = new URLSearchParams({ limit: PAGE, offset });
+    for (const k of ["q", "code", "method", "driverId"]) { const v = f(k).value.trim(); if (v && v !== "all") p.set(k, v); }
+    // Date boxes are whole local days; the server's "to" is exclusive, so send the start of the next day.
+    if (f("from").value) p.set("from", new Date(f("from").value + "T00:00:00").toISOString());
+    if (f("to").value) p.set("to", new Date(new Date(f("to").value + "T00:00:00").getTime() + 86400000).toISOString());
+    return p.toString();
+  }
+  async function load(append) {
+    if (!append) offset = 0;
+    const d = await api("/scans?" + query());
+    f("count").textContent = `${d.total} scan${d.total === 1 ? "" : "s"}`;
+    const holder = document.createElement("div");
+    renderFeed(holder, d.items, { empty: "No scans match these filters." });
+    if (append) f("rows").insertAdjacentHTML("beforeend", holder.innerHTML); else f("rows").innerHTML = holder.innerHTML;
+    f("more").hidden = offset + d.items.length >= d.total; offset += d.items.length;
+  }
+  async function daily() {
+    const d = await api("/scans/daily?days=14");
+    f("daily").innerHTML = d.days.map((x) => `<tr><td class="mono">${esc(x.date)}</td><td class="mono">${x.total}</td><td class="mono" style="color:var(--success)">${x.verified}</td><td class="mono" style="color:var(--destructive)">${x.rejected}</td><td class="mono">${x.review}</td></tr>`).join("");
+  }
+  const reload = debounce(() => load(false).catch((e) => showToast(errText(e))));
+  for (const k of ["q", "code", "method", "from", "to", "driverId"]) f(k).addEventListener(k === "q" ? "input" : "change", reload);
+  f("more").onclick = (e) => guarded(e.target, () => load(true));
+  await Promise.all([load(false), daily()]);
+
+  renderEmailRows(document.getElementById("emails"), (await api("/emails?limit=15")).items);
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Driver Documents · TransitPass</title>
+<meta name="description" content="Verify each driver’s licence and government ID, approve or reject uploaded documents, and watch for documents that are about to expire.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Driver Documents</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Verify each driver’s licence and government ID, approve or reject uploaded documents, and watch for documents that are about to expire.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-stats" id="stats"></div>
+      <article class="card">
+        <div id="tabs"></div>
+        <section id="pDrv">
+          <div class="am-bar">
+            <div class="grow"><input id="dq" placeholder="Search driver name, username or unit" maxlength="60" aria-label="Search drivers"></div>
+            <div style="width:170px"><select id="dst" aria-label="Verification status"><option value="all">All drivers</option><option value="verified">Verified</option><option value="pending">Pending</option><option value="rejected">Rejected</option><option value="expired">Expired</option><option value="incomplete">Incomplete</option></select></div>
+            <button class="primary" id="upBtn">Upload document</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Driver</th><th>Driver licence</th><th>Government ID</th><th>Verification</th><th></th></tr></thead>
+            <tbody id="drvRows"></tbody>
+          </table></div>
+          <div class="am-pager" id="drvPager"></div>
+        </section>
+        <section id="pDoc" hidden>
+          <div class="am-bar">
+            <div class="grow"><input id="q" placeholder="Search driver or document number" maxlength="60" aria-label="Search documents"></div>
+            <div style="width:150px"><select id="st" aria-label="Status"><option value="all">All statuses</option><option value="pending">Pending</option><option value="verified">Verified</option><option value="rejected">Rejected</option><option value="expired">Expired</option></select></div>
+            <div style="width:160px"><select id="ty" aria-label="Type"><option value="all">All types</option><option value="license">Driver licence</option><option value="government_id">Government ID</option></select></div>
+            <div style="width:170px"><select id="ex" aria-label="Expiry"><option value="all">Any expiry</option><option value="expiring">Expiring in 30 days</option><option value="expired">Already expired</option></select></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Driver</th><th>Document</th><th>Number</th><th>Expires</th><th>Status</th><th>Uploaded</th><th>Reviewed</th><th></th></tr></thead>
+            <tbody id="docRows"></tbody>
+          </table></div>
+          <div class="am-pager" id="docPager"></div>
+        </section>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  const cell = (d) => d.status === "missing" ? AM.badge("missing", "Not uploaded") : `${AM.badge(d.status)}${d.expiresOn ? `<br><span class="muted" style="font-size:.74rem">${d.expiryState === "expired" ? "expired " : "expires "}${esc(fmtDate(d.expiresOn))}</span>` : ""}`;
+  const loadStats = async () => {
+    const s = await api("/admin/driver-documents/summary");
+    AM.stats($("stats"), [{ label: "Verified drivers", value: s.verified, note: "of " + s.drivers }, { label: "Awaiting review", value: s.documentsAwaitingReview, note: "documents" }, { label: "Incomplete", value: s.incomplete, note: "missing a document" },
+      { label: "Rejected", value: s.rejected }, { label: "Expired", value: s.documentsExpired, note: "documents" }, { label: "Expiring soon", value: s.documentsExpiringSoon, note: "within " + s.warningDays + " days" }]);
+  };
+  async function upload(driverId, type) {
+    const drivers = await AM.personOptions("driver");
+    if (!drivers.length) return showToast("Register an active driver first.");
+    await AM.form({ title: "Upload driver document", wide: true, submit: "Upload", intro: "PDF, JPG or PNG. The file is stored privately and is never reachable by a public link. A new upload replaces the current one of the same type.",
+      initial: { driverId, type: type || "license" },
+      fields: [{ name: "driverId", label: "Driver", type: "select", required: true, options: drivers.map((d) => [d.id, d.name]) },
+        { name: "type", label: "Document type", type: "select", required: true, options: [["license", "Driver licence"], ["government_id", "Government ID"]] },
+        { name: "documentNo", label: "Document number", maxlength: 60 }, { name: "expiresOn", label: "Expiry date", type: "date", hint: "Required for a licence." },
+        { name: "file", label: "File", type: "file", required: true, accept: "application/pdf,image/jpeg,image/png" }],
+      onSubmit: async (v) => { const fd = new FormData(); fd.append("driverId", v.driverId); fd.append("type", v.type); if (v.documentNo) fd.append("documentNo", v.documentNo); if (v.expiresOn) fd.append("expiresOn", v.expiresOn); fd.append("file", v.file);
+        await api("/admin/driver-documents", { method: "POST", body: fd }); showToast("Document uploaded for review."); } });
+    drv.load(); doc.load(); loadStats();
+  }
+  const drv = AM.list({
+    tbody: $("drvRows"), pagerEl: $("drvPager"), path: "/admin/driver-documents/drivers", empty: "No drivers match.",
+    params: () => ({ q: $("dq").value.trim(), status: $("dst").value }),
+    row: (d) => `<tr><td><strong>${esc(d.name)}</strong><br><span class="muted mono" style="font-size:.74rem">${esc(d.username)}${d.unit ? " · " + esc(d.unit) : ""}</span></td>
+      <td>${cell(d.documents.license)}</td><td>${cell(d.documents.government_id)}</td><td>${AM.badge(d.verification)}</td>
+      <td><div class="am-actions"><button data-up="${d.id}" data-t="license">Upload licence</button><button data-up="${d.id}" data-t="government_id">Upload ID</button></div></td></tr>`
+  });
+  const doc = AM.list({
+    tbody: $("docRows"), pagerEl: $("docPager"), path: "/admin/driver-documents", empty: "No documents match this filter.",
+    params: () => ({ q: $("q").value.trim(), status: $("st").value, type: $("ty").value, expiry: $("ex").value }),
+    row: (d) => `<tr><td><strong>${esc(d.driver)}</strong></td><td>${esc(d.typeLabel)}<br><span class="muted" style="font-size:.74rem">${esc(d.fileName || "")} · ${AM.bytes(d.sizeBytes)}</span></td><td class="mono">${esc(d.documentNo || "—")}</td>
+      <td>${d.expiresOn ? esc(fmtDate(d.expiresOn)) + (d.expiryState !== "valid" ? " " + AM.badge(d.expiryState) : "") : "—"}</td>
+      <td>${AM.badge(d.status)}${d.reason ? `<br><span class="muted" style="font-size:.74rem">${esc(d.reason)}</span>` : ""}</td>
+      <td style="font-size:.78rem">${esc(AM.dt(d.uploadedAt))}<br><span class="muted">${esc(d.uploadedBy)}</span></td><td style="font-size:.78rem">${d.reviewedAt ? esc(AM.dt(d.reviewedAt)) + `<br><span class="muted">${esc(d.reviewedBy)}</span>` : "—"}</td>
+      <td><div class="am-actions"><button data-v="${d.id}">View</button>${d.status === "pending" || d.status === "rejected" ? `<button class="primary" data-ok="${d.id}">Approve</button>` : ""}${d.status !== "rejected" ? `<button data-no="${d.id}">Reject</button>` : ""}</div></td></tr>`
+  });
+  $("drvRows").addEventListener("click", (e) => { const b = e.target.closest("button[data-up]"); if (b) upload(b.dataset.up, b.dataset.t); });
+  $("upBtn").onclick = () => upload();
+  $("docRows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.v) return openProtectedFile(`/admin/driver-documents/${b.dataset.v}/file`);
+    if (b.dataset.ok) { await AM.act(b, () => api(`/admin/driver-documents/${b.dataset.ok}/review`, { method: "POST", body: { decision: "verified" } }), "Document approved."); doc.load(); drv.load(); loadStats(); }
+    if (b.dataset.no) { await AM.confirm({ title: "Reject document", message: "The driver is told why, so be specific (for example: photo is unreadable).", confirm: "Reject", danger: true, reason: { label: "Reason for rejecting", min: 3 },
+      run: (v) => api(`/admin/driver-documents/${b.dataset.no}/review`, { method: "POST", body: { decision: "rejected", reason: v.reason } }) }); doc.load(); drv.load(); loadStats(); }
+  });
+  [["dq", drv], ["q", doc]].forEach(([id, l]) => $(id).addEventListener("input", debounce(() => l.load(true))));
+  [["dst", drv], ["st", doc], ["ty", doc], ["ex", doc]].forEach(([id, l]) => $(id).addEventListener("change", () => l.load(true)));
+  AM.tabs($("tabs"), [["drv", "Driver verification status"], ["doc", "Uploaded documents & expiry"]], (id) => { $("pDrv").hidden = id !== "drv"; $("pDoc").hidden = id !== "doc"; (id === "drv" ? drv : doc).load(true); });
+  loadStats().catch((e) => showToast(errText(e)));
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

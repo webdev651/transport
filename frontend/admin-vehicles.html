@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vehicle Management · TransitPass</title>
+<meta name="description" content="Register vehicles, keep their details and registration up to date, assign a driver, and activate or deactivate them.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Vehicle Management</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Register vehicles, keep their details and registration up to date, assign a driver, and activate or deactivate them.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-stats" id="stats"></div>
+      <article class="card">
+        <div class="am-bar">
+          <div class="grow"><input id="q" placeholder="Search name, plate, registration or driver" maxlength="60" aria-label="Search vehicles"></div>
+          <div style="width:150px"><select id="st" aria-label="Status"><option value="all">All statuses</option><option value="active">Active</option><option value="maintenance">Maintenance</option><option value="inactive">Inactive</option></select></div>
+          <div style="width:150px"><select id="ty" aria-label="Type"><option value="all">All types</option></select></div>
+          <div style="width:160px"><select id="as" aria-label="Assignment"><option value="all">Any assignment</option><option value="assigned">With a driver</option><option value="unassigned">No driver</option></select></div>
+          <button class="primary" id="addBtn">Register vehicle</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Vehicle</th><th>Plate</th><th>Capacity</th><th>Registration</th><th>Status</th><th>Driver</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="am-pager" id="pager"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  let items = [], typesLoaded = "";
+  const loadStats = async () => {
+    const s = await api("/admin/vehicles/summary");
+    AM.stats($("stats"), [{ label: "Vehicles", value: s.total }, { label: "Active", value: s.active }, { label: "Maintenance", value: s.maintenance }, { label: "Inactive", value: s.inactive },
+      { label: "Active, no driver", value: s.unassigned }, { label: "Registration expiring", value: s.expiring, note: s.expired + " already expired" }]);
+  };
+  const fields = (creating) => [
+    { name: "name", label: "Vehicle name", required: true, maxlength: 100, placeholder: "Bus 1" }, { name: "type", label: "Vehicle type", required: true, maxlength: 40, placeholder: "Bus, Jeepney, UV Express…" },
+    { name: "plateNumber", label: "Plate number", required: true, maxlength: 20 }, { name: "capacity", label: "Passenger capacity", type: "number", required: true, min: 1, max: 200 },
+    { name: "registrationNo", label: "Registration number", maxlength: 60 }, { name: "registrationExpiry", label: "Registration expiry", type: "date" },
+    ...(creating ? [{ name: "status", label: "Initial status", type: "select", options: [["active", "Active"], ["maintenance", "Maintenance"]] }] : []), { name: "notes", label: "Notes", type: "textarea", maxlength: 255 }];
+  const body = (v) => ({ name: v.name, type: v.type, plateNumber: v.plateNumber, capacity: Number(v.capacity), registrationNo: v.registrationNo, registrationExpiry: v.registrationExpiry, notes: v.notes });
+  async function reload() { await Promise.all([list.load(), loadStats()]); }
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/vehicles", empty: "No vehicles yet. Use “Register vehicle”.",
+    params: () => ({ q: $("q").value.trim(), status: $("st").value, type: $("ty").value, assigned: $("as").value }),
+    onData: (d) => { items = d.items; const k = d.types.join("|"); if (k !== typesLoaded) { typesLoaded = k; const cur = $("ty").value; $("ty").innerHTML = '<option value="all">All types</option>' + d.types.map((t) => `<option ${t === cur ? "selected" : ""}>${esc(t)}</option>`).join(""); } },
+    row: (v) => `<tr><td><strong>${esc(v.name)}</strong><br><span class="muted" style="font-size:.74rem">${esc(v.type)}${v.openTrips ? ` · ${v.openTrips} open trip(s)` : ""}</span></td><td class="mono">${esc(v.plateNumber)}</td><td class="mono">${v.capacity}</td>
+      <td>${esc(v.registrationNo || "—")}${v.registrationExpiry ? `<br><span class="muted" style="font-size:.74rem">until ${esc(fmtDate(v.registrationExpiry))}</span> ${v.registrationState === "valid" ? "" : AM.badge(v.registrationState)}` : ""}</td>
+      <td>${AM.badge(v.status)}</td><td>${v.driver ? esc(v.driver) : '<span class="muted">unassigned</span>'}</td>
+      <td><div class="am-actions"><button data-a="edit" data-id="${v.id}">Edit</button>
+        ${v.driver ? `<button data-a="unassign" data-id="${v.id}">Unassign driver</button>` : `<button data-a="assign" data-id="${v.id}">Assign driver</button>`}
+        ${v.status === "active" ? `<button data-a="maintenance" data-id="${v.id}">Maintenance</button><button data-a="inactive" data-id="${v.id}">Deactivate</button>` : `<button class="primary" data-a="active" data-id="${v.id}">Activate</button>`}</div></td></tr>`
+  });
+  $("addBtn").onclick = async () => { await AM.form({ title: "Register vehicle", wide: true, fields: fields(true), submit: "Register", onSubmit: async (v) => { await api("/admin/vehicles", { method: "POST", body: { ...body(v), status: v.status } }); showToast("Vehicle registered."); } }); reload(); };
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const v = items.find((x) => String(x.id) === b.dataset.id), a = b.dataset.a;
+    if (a === "edit") { await AM.form({ title: "Edit " + v.name, wide: true, fields: fields(false), submit: "Save", initial: { name: v.name, type: v.type, plateNumber: v.plateNumber, capacity: v.capacity, registrationNo: v.registrationNo || "", registrationExpiry: v.registrationExpiry || "", notes: v.notes || "" },
+      onSubmit: async (x) => { await api(`/admin/vehicles/${v.id}`, { method: "PATCH", body: body(x) }); showToast("Vehicle updated."); } }); return reload(); }
+    if (a === "assign") {
+      const drivers = (await AM.personOptions("driver"));
+      if (!drivers.length) return showToast("There are no active drivers to assign.");
+      await AM.form({ title: "Assign driver to " + v.name, intro: "A driver can be assigned to one vehicle at a time, and a vehicle has one driver.", fields: [{ name: "driverId", label: "Driver", type: "select", required: true, options: drivers.map((d) => [d.id, d.name + (d.unit ? " (" + d.unit + ")" : "")]) }], submit: "Assign",
+        onSubmit: async (x) => { await api(`/admin/vehicles/${v.id}/driver`, { method: "POST", body: { driverId: Number(x.driverId) } }); showToast("Driver assigned."); } }); return reload();
+    }
+    if (a === "unassign") { await AM.confirm({ title: "Unassign driver", message: `Remove ${esc(v.driver)} from ${esc(v.name)}?`, confirm: "Unassign", run: () => api(`/admin/vehicles/${v.id}/driver`, { method: "DELETE" }) }); return reload(); }
+    if (a === "inactive" && !confirm(`Deactivate ${v.name}? It can no longer be used for trips until it is activated again.`)) return;
+    await AM.act(b, () => api(`/admin/vehicles/${v.id}/status`, { method: "POST", body: { status: a } }), `${v.name}: ${a === "inactive" ? "deactivated" : a === "active" ? "activated" : "set to maintenance"}.`); reload();
+  });
+  $("q").addEventListener("input", debounce(() => list.load(true))); ["st", "ty", "as"].forEach((id) => $(id).addEventListener("change", () => list.load(true)));
+  list.load(); loadStats().catch((e) => showToast(errText(e)));
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

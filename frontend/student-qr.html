@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My QR Code · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<template id="tpl">
+
+  <div id="qrNotice"></div>
+  <section class="sp-card"><div class="qr-stage" id="stage"><div class="sk" style="height:14rem"></div></div></section>
+  <section class="sp-grid two">
+    <article class="sp-card"><h2>About your QR code</h2><p class="sub">Keep it private.</p>
+      <ul style="margin:0;padding-left:1.1rem;font-size:.88rem;line-height:1.7;color:#44546f"><li>It holds only a random secure code. No name, ID or other personal information is stored inside it.</li><li>The driver scans it and the system checks your record, so a screenshot of someone else’s code never works for you.</li><li>Replacing or reporting it lost stops the old code immediately.</li></ul></article>
+    <article class="sp-card"><h2>QR history</h2><p class="sub">Codes issued to you.</p><div id="hist"></div></article>
+  </section>
+
+</template>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+
+Student.boot({ nav: "qr", eyebrow: "Boarding pass", title: "My QR Code", sub: "Show this code to the driver when you board." }, async (me) => {
+  const { S, qrBadge, empty, busy, ask, formDialog } = Student;
+  const $ = (id) => document.getElementById(id);
+  let state, p;
+
+  async function load() {
+    state = await S("/me/qr");
+    const hist = (await S("/me/qr/history")).items;
+    p = (await S("/me/profile")).student; Student.paintWho(p);
+    paint(hist);
+  }
+  function paint(hist) {
+    const q = state.qr;
+    const status = q ? { status: "active", label: "Active" } : (hist[0] ? { status: hist[0].status === "revoked" ? "revoked" : "expired", label: hist[0].status === "revoked" ? "Deactivated" : "Expired" } : { status: "none", label: "Not generated" });
+    $("qrNotice").innerHTML = !q && state.reason ? `<div class="notice ${state.blockedByAdmin ? "warn" : "info"}"><div><b>${state.blockedByAdmin ? "QR code deactivated" : "QR code locked"}</b>${esc(state.reason)}</div></div>` : "";
+    let actions = "";
+    if (q) actions = `<button class="btn blue" data-a="png">Download PNG</button><button class="btn blue" data-a="pdf">Download PDF</button><button class="btn" data-a="print">Print</button>
+      <button class="btn" data-a="replace">Replace my QR code</button><button class="btn danger" data-a="lost">Report lost</button>`;
+    else if (state.canGenerate) actions = `<button class="btn primary" data-a="generate">Generate my QR code</button>`;
+    else if (state.blockedByAdmin) actions = state.replacementRequestPending ? `<span class="badge b-pending">Replacement request pending</span>` : `<button class="btn primary" data-a="request">Request replacement</button>`;
+    $("stage").innerHTML = `<div class="qr-box ${q ? "" : "locked"}">${qrSvg(q ? q.payload : "TRANSITPASS-LOCKED")}<p class="cap">${q ? esc(me.schoolId) : "Locked"}</p></div>
+      <div><p style="margin:0 0 .5rem">${qrBadge(status)}</p>
+      <h2 style="margin:0">${esc(p.name)}</h2><p class="sub" style="margin:.2rem 0 1rem">${esc(p.schoolId)} · ${esc(p.course)}</p>
+      <dl class="dl" style="margin-bottom:1.1rem"><dt>Status</dt><dd>${esc(status.label)}</dd>
+        <dt>Generated</dt><dd>${q ? esc(fmtDateTime(q.generatedAt)) : "—"}</dd><dt>Expires</dt><dd>${q ? esc(fmtDate(q.expiresAt)) : "—"}</dd></dl>
+      <div class="btn-row">${actions}</div></div>`;
+    $("hist").innerHTML = hist.length ? hist.map((h) => `<div class="list-row"><div><p class="t">${esc(fmtDateTime(h.generatedAt))}</p><p class="s">Expires ${esc(fmtDate(h.expiresAt))}${h.revokeReason ? "<br>" + esc(h.revokeReason) : ""}</p></div><div class="r">${qrBadge({ status: h.status, label: h.status === "revoked" ? "Deactivated" : h.status })}</div></div>`).join("") : empty("Nothing yet", "Your QR codes will be listed here.");
+  }
+  await load();
+
+  $("stage").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const a = b.dataset.a, q = state.qr;
+    if (a === "png") return downloadQrCode(q.payload, p.schoolId);
+    if (a === "print") return Student.printQr({ payload: q.payload, name: p.name, schoolId: p.schoolId });
+    if (a === "pdf") return busy(b, async () => Student.saveBlob(await Student.qrPdf({ payload: q.payload, name: p.name, schoolId: p.schoolId, expiresAt: q.expiresAt }), `transitpass-qr-${p.schoolId}.pdf`));
+    if (a === "request") return formDialog({ title: "Request a replacement QR code", sub: "An administrator deactivated your code, so the registrar must approve a new one.", submit: "Send request",
+      fields: [{ name: "reason", label: "Reason", type: "textarea", placeholder: "Tell the registrar why you need a new QR code" }],
+      onSubmit: async (v) => { await S("/me/requests", { method: "POST", body: { type: "qr_replacement", reason: v.reason } }); await load(); showToast("Request sent to the registrar."); } });
+    busy(b, async () => {
+      if (a === "generate") { state = await S("/me/qr", { method: "POST" }); showToast("Your QR code is ready."); }
+      if (a === "replace") { if (!(await ask("Replace your QR code?", "Your current code stops working immediately and a new one is issued.", { yes: "Replace it" }))) return; state = await S("/me/qr/regenerate", { method: "POST" }); showToast("New QR code issued."); }
+      if (a === "lost") { if (!(await ask("Report your QR code lost?", "It is deactivated right away so nobody else can use it. You can generate a new one afterwards.", { yes: "Report lost", danger: true }))) return; state = await S("/me/qr/lost", { method: "POST", body: {} }); showToast("QR code deactivated."); }
+      await load();
+    });
+  });
+});
+
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

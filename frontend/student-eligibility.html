@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discount Eligibility · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<template id="tpl">
+
+  <div id="eNotice"></div>
+  <section class="sp-grid two">
+    <article class="sp-card"><h2>Discount status</h2><p class="sub">Only an administrator can approve your discount.</p><div id="status"></div></article>
+    <article class="sp-card"><h2>Enrollment verification</h2><p class="sub">How your enrollment was checked.</p><dl class="dl" id="verify"></dl></article>
+  </section>
+  <section class="sp-grid two">
+    <article class="sp-card"><h2>Renewal</h2><p class="sub">Ask the registrar to extend your discount.</p><div id="renew"></div></article>
+    <article class="sp-card"><h2>Renewal requests</h2><p class="sub">Your past and pending requests.</p><div id="rhist"></div></article>
+  </section>
+
+</template>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+
+Student.boot({ nav: "eligibility", eyebrow: "Student fare", title: "Discount Eligibility", sub: "See whether you qualify for the student discount and for how long." }, async () => {
+  const { S, eligBadge, regBadge, reqBadge, empty, busy, formDialog } = Student;
+  const $ = (id) => document.getElementById(id);
+  async function load() {
+    const d = await S("/me/eligibility"), el = d.eligibility, en = d.enrollment;
+    const tone = { eligible: "ok", pending: "info", expired: "warn", suspended: "warn", not_eligible: "bad" }[el.status];
+    $("eNotice").innerHTML = `<div class="notice ${tone}"><div><b>${esc(el.label)}</b>${esc(el.note)}</div></div>`;
+    let bar = "";
+    if (el.status === "eligible" && el.daysLeft !== null) { const pct = Math.max(4, Math.min(100, (el.daysLeft / 180) * 100)); bar = `<div class="progress ${el.daysLeft <= 30 ? "warn" : ""}" style="margin-top:.8rem"><i style="width:${pct}%"></i></div><p class="sub" style="margin:.4rem 0 0">${el.daysLeft} day${el.daysLeft === 1 ? "" : "s"} left</p>`; }
+    $("status").innerHTML = `<p style="margin:0 0 .8rem">${eligBadge(el)}</p><dl class="dl"><dt>Eligibility</dt><dd>${esc(el.label)}</dd><dt>Approved discount</dt><dd>${el.percent ? el.percent + "%" : "None"}</dd>
+      <dt>Valid until</dt><dd>${el.status === "pending" || el.status === "not_eligible" && !el.validUntil ? "—" : esc(el.validUntil || "—")}</dd></dl>${bar}`;
+    $("verify").innerHTML = [["Registration", regBadge(en.registration)], ["Verified", en.registration.decidedAt ? esc(fmtDate(en.registration.decidedAt)) : "—"], ["Method", esc(en.verifiedBy || "—")], ["Student ID", esc(en.schoolId)], ["School", esc(en.school)], ["Campus", esc(en.campus)], ["Course", esc(en.course)], ["Year / Section", esc(en.yearLevel + " · " + en.section)]]
+      .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    $("renew").innerHTML = d.renewal.canRequest
+      ? `<p class="sub">Your discount is ${el.status === "eligible" ? "close to expiring" : "not active"}. Send a renewal request and the registrar will review it.</p><button class="btn primary" id="btnRenew">Request renewal</button>`
+      : `<div class="notice info"><div>${esc(d.renewal.reason)}</div></div>`;
+    $("rhist").innerHTML = d.requests.length ? d.requests.map((r) => `<div class="list-row"><div><p class="t">Renewal request</p><p class="s">${esc(fmtDateTime(r.createdAt))}${r.reason ? "<br>" + esc(r.reason) : ""}${r.adminNote ? "<br>Registrar: " + esc(r.adminNote) : ""}</p></div><div class="r">${reqBadge(r)}${r.status === "pending" ? `<p><button class="link-btn" data-cancel="${r.id}">Cancel</button></p>` : ""}</div></div>`).join("") : empty("No requests", "You have not requested a renewal yet.");
+    const b = $("btnRenew");
+    if (b) b.onclick = () => formDialog({ title: "Request discount renewal", sub: "Optional note for the registrar.", submit: "Send request", fields: [{ name: "reason", label: "Note (optional)", type: "textarea", placeholder: "For example: enrolled for next semester" }],
+      onSubmit: async (v) => { await S("/me/requests", { method: "POST", body: { type: "renewal", reason: v.reason || undefined } }); await load(); showToast("Renewal request sent."); } });
+  }
+  await load();
+  document.addEventListener("click", (e) => { const c = e.target.closest("[data-cancel]"); if (c) busy(c, async () => { await S(`/me/requests/${c.dataset.cancel}/cancel`, { method: "POST" }); await load(); showToast("Request cancelled."); }); });
+});
+
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

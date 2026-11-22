@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transaction Receipt · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+<style>
+@page { size: A4; margin: 12mm; }
+.receipt-page{max-width:720px;margin:0 auto}
+@media print{
+  body.print-receipt .shell,body.print-receipt .toast,body.print-receipt dialog,body.print-receipt .no-print{display:none!important}
+  body.print-receipt .receipt-page,body.print-receipt .receipt-page *{visibility:visible}
+  body.print-receipt{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.print-receipt .receipt{box-shadow:none;border:0}
+  body.print-receipt .page{padding:0}
+}
+</style>
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<main>
+  <header class="hero">
+    <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Student portal</p>
+    <h1>Transaction Receipt</h1>
+    <p class="muted" style="margin:.5rem 0 0;max-width:44rem">A printable receipt for your ride. All figures come from your transaction record — nothing is hardcoded.</p>
+  </header>
+  <div class="page stack">
+    <section class="receipt-page receipt-card card" id="receipt">
+      <div id="receiptBody"><div class="notice muted">Loading receipt…</div></div>
+    </section>
+    <div class="btn-row no-print" style="justify-content:center;margin-top:1rem">
+      <button class="btn primary" id="btnPrint">Print receipt</button>
+      <button class="btn" id="btnPdf">Download PDF</button>
+      <button class="btn" onclick="window.close()">Close</button>
+    </div>
+  </div>
+</main>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+(async () => {
+  const { S, peso, esc, receiptPdf, printReceipt, receiptHtml } = Student;
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const id = params.get("id");
+  const body = $("receiptBody");
+  if (!/^\d+$/.test(id || "")) { body.innerHTML = `<div class="notice bad"><b>Invalid receipt.</b> Use a transaction reference number.</div>`; return; }
+  let r = null;
+  try {
+    const data = await S(`/me/transactions/${id}/receipt`);
+    r = data.receipt;
+    if (!r) throw new Error("No receipt returned.");
+  } catch (e) {
+    body.innerHTML = `<div class="notice bad"><b>Could not load the receipt.</b> ${esc(errText(e))}</div>`;
+    return;
+  }
+  body.innerHTML = receiptHtml(r);
+  $("btnPrint").onclick = () => { document.body.classList.add("print-receipt"); printReceipt(r); };
+  $("btnPdf").onclick = async () => {
+    const btn = $("btnPdf");
+    const label = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spin" aria-hidden="true"></span> Generating…';
+    try {
+      const blob = await receiptPdf(r);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `transitpass-receipt-${r.reference.replace(/[^A-Za-z0-9_-]/g,"-")}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch (e) { showToast(errText(e)); }
+    finally { btn.disabled = false; btn.innerHTML = label; }
+  };
+  window.addEventListener("afterprint", () => { document.body.classList.remove("print-receipt"); }, { once: true });
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

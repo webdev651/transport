@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refund Requests · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<template id="tpl">
+
+  <section class="sp-grid kpi" id="sum"></section>
+
+  <section class="sp-card">
+    <h2>Your refund requests</h2>
+    <div id="list"></div>
+  </section>
+
+  <section class="sp-card">
+    <h2>Request a refund</h2>
+    <p class="sub">Ask for your money back on a completed ride. You can request a refund once per transaction; an administrator reviews and decides.</p>
+    <form id="refundForm" novalidate>
+      <div class="fld"><label for="refTxn">Transaction</label><select id="refTxn" required><option value="">Choose a ride</option></select></div>
+      <div class="fld"><label for="refAmt">Refund amount (₱)</label><input id="refAmt" type="number" min="0.01" step="0.01" placeholder="Full fare" required></div>
+      <div class="fld"><label for="refWhy">Reason</label><textarea id="refWhy" maxlength="500" placeholder="Why are you asking for a refund?" required></textarea></div>
+      <div class="btn-row"><button class="btn primary" type="submit">Request refund</button><button class="btn" type="button" id="refReset">Reset</button></div>
+    </form>
+  </section>
+
+</template>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+
+Student.boot({ nav: "refunds", eyebrow: "My refunds", title: "Refund Requests", sub: "Request a refund for a ride you already paid for." }, async () => {
+  const { S, peso, empty, openDialog, formDialog, busy, esc } = Student;
+  const $ = (id) => document.getElementById(id);
+  const txns = []; let refunds = [];
+
+  async function load() {
+    $("sum").innerHTML = skeleton(3);
+    $("list").innerHTML = skeleton(4);
+    const d = await S("/me/refunds"); refunds = d.items;
+    $("sum").innerHTML = `
+      <article class="kpi-card slate"><span class="l">Pending</span><span class="v">${d.counts.pending}</span></article>
+      <article class="kpi-card green"><span class="l">Approved</span><span class="v">${d.counts.approved}</span></article>
+      <article class="kpi-card red"><span class="l">Rejected</span><span class="v">${d.counts.rejected}</span></article>`;
+
+    const rows = refunds.length
+      ? `<table class="rtable"><thead><tr><th>Reference</th><th>Amount</th><th>Reason</th><th>Status</th><th>Requested</th><th>Decision</th></tr></thead><tbody>${refunds.map((r) => `
+      <tr><td data-label="Reference" class="mono">#${r.id}<br><span class="muted" style="font-size:.74rem">${esc(r.reference || "—")}</span></td>
+      <td data-label="Amount" class="mono">${peso(r.amount)}</td>
+      <td data-label="Reason" style="max-width:20rem;font-size:.85rem">${esc(r.reason)}</td>
+      <td data-label="Status">${badge(r.status)}</td>
+      <td data-label="Requested">${esc(fmtDateTime(r.createdAt))}</td>
+      <td data-label="Decision">${r.decisionReason ? esc(r.decisionReason) : (r.status === "pending" ? "Awaiting decision" : "—")}</td></tr>`).join("")}</tbody></table>`
+      : empty("No refund requests yet", "Your refund requests appear here after you submit one.");
+    $("list").innerHTML = rows;
+
+    const t = await S("/me/transactions?limit=50&status=completed");
+    txns.length = 0; txns.push(...(t.items || []));
+    const sel = $("refTxn"); sel.innerHTML = '<option value="">Choose a ride</option>';
+    txns.filter((x) => !x.refund && !x.cancelled).forEach((x) => {
+      sel.add(new Option(`${esc(x.reference)} · ${esc(x.student || "")} · ${peso(x.finalFare || x.amount)}`, x.id));
+    });
+  }
+
+  const badge = (s) => `<span class="badge b-${s === "pending" ? "slate" : s === "approved" ? "green" : "red"}">${esc(s)}</span>`;
+
+  $("refundForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const scanId = Number($("refTxn").value);
+    const amount = Number($("refAmt").value) || undefined;
+    const reason = $("refWhy").value.trim();
+    if (!scanId) return showToast("Choose a transaction.");
+    if (!reason || reason.length < 5) return showToast("Reason must be at least 5 characters.");
+    try {
+      await busy($("refundForm"), () => S("/me/refunds", { method: "POST", body: { scanId, amount, reason } }));
+      showToast("Refund request submitted. You will be notified when it is decided.");
+      $("refundForm").reset();
+      load();
+    } catch (err) { showToast(errText(err)); }
+  });
+  $("refReset").onclick = () => { $("refundForm").reset(); };
+
+  await load();
+});
+
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

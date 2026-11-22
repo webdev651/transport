@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backups & Data Retention · TransitPass</title>
+<meta name="description" content="Back up the database, schedule backups, verify and download them, and follow the recovery procedure. Backup files are stored privately and are never reachable by a public link.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Backups & Data Retention</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Back up the database, schedule backups, verify and download them, and follow the recovery procedure. Backup files are stored privately and are never reachable by a public link.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-stats" id="stats"></div>
+      <article class="card">
+        <div id="tabs"></div>
+        <section id="pHist">
+          <div class="am-bar">
+            <div style="width:170px"><select id="st" aria-label="Status"><option value="all">All backups</option><option value="completed">Completed</option><option value="failed">Failed</option><option value="deleted">Deleted</option></select></div>
+            <button class="primary" id="mkBtn">Create backup now</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>File</th><th>Type</th><th>Status</th><th>Size</th><th>Contents</th><th>Created</th><th>Last verified</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table></div>
+          <div class="am-pager" id="pager"></div>
+        </section>
+        <section id="pSched" hidden>
+          <div id="schedForm"></div>
+          <h3 style="margin:1.5rem 0 .4rem;font-size:1rem">Apply the retention policy</h3>
+          <p class="muted" style="font-size:.85rem;margin-top:0">Removes backups and logs older than the limits above. Transactions, refunds and cancellations are never removed.</p>
+          <div class="row" style="justify-content:flex-start"><button id="retPrev">Preview what would be removed</button><button id="retRun">Apply now</button></div>
+          <div id="retOut" class="am-note" hidden></div>
+        </section>
+        <section id="pRec" hidden>
+          <h3 style="margin:0 0 .4rem;font-size:1rem">Database recovery procedure</h3>
+          <div class="am-note am-warn">Recovery replaces the data in the database with the data in the backup. Anything entered after the backup was taken is lost, so use the newest good backup and tell users before you start.</div>
+          <ol style="font-size:.88rem;line-height:1.7;padding-left:1.2rem">
+            <li>Open the <strong>Backup history</strong> tab, choose the backup, and press <strong>Verify</strong>. Only use a backup that shows “OK”.</li>
+            <li><strong>Download</strong> it, or copy it from the server’s backup folder. Keep a copy somewhere other than the server.</li>
+            <li>Turn on <strong>maintenance mode</strong> (Settings → Maintenance) and <strong>stop the TransitPass server</strong>, so nothing writes while the data is replaced.</li>
+            <li>On the server, in the <span class="mono">backend</span> folder, run a dry run first. It checks the file’s checksum and shows what it contains:<div class="am-code">node scripts/restore-backup.js backups/&lt;file&gt;.sql.gz</div></li>
+            <li>Restore for real. A safety backup of the current database is taken first, automatically:<div class="am-code">node scripts/restore-backup.js backups/&lt;file&gt;.sql.gz --yes</div></li>
+            <li>To rehearse safely, restore into a separate scratch database instead:<div class="am-code">node scripts/restore-backup.js backups/&lt;file&gt;.sql.gz --database transitpass_restore_test --yes --no-safety-backup</div></li>
+            <li>Start the server, sign in, check a few records, then turn maintenance mode off.</li>
+          </ol>
+          <h3 style="margin:1.2rem 0 .4rem;font-size:1rem">How backups are protected</h3>
+          <ul style="font-size:.88rem;line-height:1.7;padding-left:1.2rem"><li>Files are stored outside the public web folder (<span class="mono">BACKUP_DIR</span>) and the server refuses to start a backup if that folder is placed inside it.</li><li>Only a signed-in administrator can download one, and every download is recorded in the activity log.</li><li>Each file has a SHA-256 checksum, so damage or tampering is detected by <strong>Verify</strong> and by the restore script.</li><li>Backups contain personal data and password hashes: store copies like any confidential record.</li></ul>
+        </section>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  const loadStatus = async () => {
+    const s = await api("/admin/backups/status"), ok = s.health === "ok";
+    AM.stats($("stats"), [{ label: "Health", value: s.health === "ok" ? "Good" : s.health === "none" ? "No backup yet" : s.health === "stale" ? "Out of date" : "Last one failed", note: s.lastSuccessfulAgeHours != null ? `last good backup ${s.lastSuccessfulAgeHours} h ago` : "create your first backup" },
+      { label: "Stored backups", value: s.stored, note: AM.bytes(s.totalBytes) }, { label: "Failed", value: s.failed }, { label: "Schedule", value: s.schedule.enabled ? `${AM.label(s.schedule.frequency)} ${s.schedule.time}` : "Off", note: `keep ${s.schedule.keepCount} · ${s.schedule.keepDays} days` }]);
+    $("mkBtn").disabled = s.running;
+  };
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/backups", empty: "No backups yet. Use “Create backup now”.", params: () => ({ status: $("st").value }),
+    row: (b) => `<tr><td class="mono" style="font-size:.74rem">${esc(b.filename || "—")}${b.checksum ? `<br><span class="muted" title="SHA-256 ${esc(b.checksum)}">sha256 ${esc(b.checksum.slice(0, 12))}…</span>` : ""}</td><td>${esc(AM.label(b.type))}</td><td>${AM.badge(b.status)}${b.error ? `<br><span class="muted" style="font-size:.72rem">${esc(b.error)}</span>` : ""}${b.status === "completed" && !b.fileAvailable ? '<br><span class="muted" style="font-size:.72rem">file missing on server</span>' : ""}</td>
+      <td class="mono">${AM.bytes(b.sizeBytes)}</td><td style="font-size:.78rem">${b.tables != null ? `${b.tables} tables<br>${b.rows} rows` : "—"}</td><td style="font-size:.78rem">${esc(AM.dt(b.startedAt))}<br><span class="muted">${esc(b.createdBy)}</span></td>
+      <td style="font-size:.76rem">${b.lastVerifiedAt ? `${esc(AM.dt(b.lastVerifiedAt))}<br>${AM.badge((b.verifyResult || "").startsWith("OK") ? "ok" : "failed", (b.verifyResult || "").startsWith("OK") ? "OK" : "Failed")}` : '<span class="muted">never</span>'}</td>
+      <td><div class="am-actions">${b.status === "completed" && b.fileAvailable ? `<button data-a="dl" data-id="${b.id}" data-f="${esc(b.filename)}">Download</button><button data-a="verify" data-id="${b.id}">Verify</button><button data-a="del" data-id="${b.id}" data-f="${esc(b.filename)}">Delete file</button>` : ""}</div></td></tr>`
+  });
+  $("mkBtn").onclick = (e) => AM.act(e.currentTarget, async () => { const r = await api("/admin/backups", { method: "POST" }); showToast(`Backup created: ${r.backup.tables} tables, ${r.backup.rows} rows.`); list.load(true); loadStatus(); });
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    if (b.dataset.a === "dl") return AM.download(`/admin/backups/${b.dataset.id}/download`, b.dataset.f);
+    if (b.dataset.a === "verify") return AM.act(b, async () => { const r = await api(`/admin/backups/${b.dataset.id}/verify`, { method: "POST" }); showToast(r.result); list.load(); });
+    if (b.dataset.a === "del") { await AM.confirm({ title: "Delete backup file", message: `${esc(b.dataset.f)} will be removed from the server. The history entry stays.`, confirm: "Delete file", danger: true, run: () => api(`/admin/backups/${b.dataset.id}`, { method: "DELETE" }) }); list.load(); loadStatus(); }
+  });
+  $("st").addEventListener("change", () => list.load(true));
+  const out = (r) => { const o = $("retOut"); o.hidden = false; o.innerHTML = `<strong>${r.dryRun ? "Would remove" : "Removed"}:</strong> ${r.backups} backup(s), ${r.activityLogs} activity log entr${r.activityLogs === 1 ? "y" : "ies"}, ${r.notifications} notification(s), ${r.suspiciousFlags} finished suspicious flag(s).`; };
+  $("retPrev").onclick = (e) => AM.act(e.currentTarget, async () => out(await api("/admin/backups/retention", { method: "POST", body: { dryRun: true } })));
+  $("retRun").onclick = async () => { await AM.confirm({ title: "Apply retention policy", message: "Old backups and logs beyond the limits will be permanently removed. Transactions are never touched. Preview first if you are unsure.", confirm: "Apply now", danger: true, run: async () => out(await api("/admin/backups/retention", { method: "POST", body: { dryRun: false } })) }); list.load(true); loadStatus(); };
+  async function sched() {
+    await AM.settingsForm($("schedForm"), { onSaved: loadStatus, fields: [
+      { key: "backup.enabled", label: "Run scheduled backups", type: "checkbox" }, { key: "backup.frequency", label: "Frequency", type: "select", options: [["daily", "Daily"], ["weekly", "Weekly"]] }, { key: "backup.time", label: "Time of day (24-hour, HH:MM)", type: "text", maxlength: 5, hint: "Uses the server’s time zone." },
+      { key: "backup.keepCount", label: "Always keep the newest … backups", type: "number", min: 1, max: 365 }, { key: "backup.keepDays", label: "Delete older backups after … days", type: "number", min: 1, max: 3650 },
+      { key: "retention.activityLogDays", label: "Keep the activity log for … days (0 = forever)", type: "number", min: 0, max: 3650, hint: "0 or at least 30." }, { key: "retention.notificationDays", label: "Keep notifications for … days (0 = forever)", type: "number", min: 0, max: 3650 },
+      { key: "retention.reviewedFlagDays", label: "Keep reviewed suspicious flags for … days (0 = forever)", type: "number", min: 0, max: 3650 }] });
+  }
+  AM.tabs($("tabs"), [["pHist", "Backup history"], ["pSched", "Schedule & retention"], ["pRec", "Recovery procedure"]], (id) => { ["pHist", "pSched", "pRec"].forEach((s) => { $(s).hidden = s !== id; }); if (id === "pHist") list.load(true); if (id === "pSched") sched().catch((e) => showToast(errText(e))); });
+  loadStatus().catch((e) => showToast(errText(e)));
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

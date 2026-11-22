@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Verifications · TransitPass</title>
+<meta name="description" content="Students are never verified automatically. Open Review to read the details and the uploaded documents, check them against the school’s enrollment records, then approve or reject. Information correction, discount renewal and QR replacement requests are reviewed below.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<style>
+  .rv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:.6rem 1.2rem;margin:.9rem 0;font-size:.85rem}
+  .rv-grid dt{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted-foreground)}.rv-grid dd{margin:.1rem 0 0;font-weight:600;overflow-wrap:anywhere}
+  .rv-sec{border-top:1px solid var(--border);padding-top:.9rem;margin-top:.9rem}
+  .rv-sec h3{margin:0 0 .5rem;font-size:.95rem}
+  .rv-doc{display:flex;justify-content:space-between;gap:.8rem;flex-wrap:wrap;align-items:center;padding:.6rem 0;border-bottom:1px dashed var(--border)}
+  .rv-doc:last-child{border-bottom:0}
+  .rv-photo{width:3.2rem;height:3.2rem;border-radius:50%;object-fit:cover;flex:none}
+  .rv-top{display:flex;gap:.9rem;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .rv-top>div:first-child{display:flex;gap:.8rem;align-items:center;min-width:0}
+  dialog#rv{width:min(46rem,94vw);max-height:92vh;overflow:auto}
+  .arrow{color:var(--muted-foreground)}
+</style>
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Student Verification Requests</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Students are never verified automatically. Open Review to read the details and the uploaded documents, check them against the school’s enrollment records, then approve or reject. Information correction requests are reviewed below.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div class="tp-tabs" id="tabs">
+          <button data-s="pending" class="on">Pending <span id="cPending"></span></button>
+          <button data-s="verified">Verified <span id="cVerified"></span></button>
+          <button data-s="rejected">Rejected <span id="cRejected"></span></button>
+          <button data-s="all">All</button>
+        </div>
+        <div class="row" style="margin-bottom:1rem"><div style="flex:1;min-width:220px"><input id="q" placeholder="Search name, School ID, email or program" maxlength="60" aria-label="Search verification requests"></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Student</th><th>School ID</th><th>Program · Year</th><th>Submitted</th><th>Documents</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <p class="muted" id="empty" hidden style="font-size:.85rem;margin-top:.75rem">Nothing here.</p>
+      </article>
+      <article class="card" id="corrCard">
+        <h2 style="margin:0 0 .2rem;font-size:1.05rem">Information correction requests</h2>
+        <p class="muted" style="margin:0 0 1rem;font-size:.85rem">Students ask here to change their name, Student ID, school, campus, course, year level or section. Approving a request changes the student’s record.</p>
+        <div class="tp-tabs" id="cTabs">
+          <button data-s="pending" class="on">Pending <span id="ccPending"></span></button>
+          <button data-s="approved">Approved <span id="ccApproved"></span></button>
+          <button data-s="rejected">Rejected <span id="ccRejected"></span></button>
+          <button data-s="all">All</button>
+        </div>
+        <div class="row" style="margin-bottom:1rem"><div style="flex:1;min-width:220px"><input id="cq" placeholder="Search student name, School ID or requested value" maxlength="60" aria-label="Search correction requests"></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Student</th><th>Change requested</th><th>Reason given</th><th>Sent</th><th>Status</th><th></th></tr></thead>
+          <tbody id="cRows"></tbody>
+        </table></div>
+        <p class="muted" id="cEmpty" hidden style="font-size:.85rem;margin-top:.75rem">No correction requests here.</p>
+      </article>
+      <article class="card" id="renewCard">
+        <h2 style="margin:0 0 .2rem;font-size:1.05rem">Discount renewal requests</h2>
+        <p class="muted" style="margin:0 0 1rem;font-size:.85rem">Students whose discount expired (or is about to) ask the registrar to extend it. Approving sets a new validity period and makes the pass active again; the student can then generate a fresh QR code.</p>
+        <div class="tp-tabs" id="rnTabs">
+          <button data-s="pending" class="on">Pending <span id="rnPending"></span></button>
+          <button data-s="approved">Approved <span id="rnApproved"></span></button>
+          <button data-s="rejected">Rejected <span id="rnRejected"></span></button>
+          <button data-s="all">All</button>
+        </div>
+        <div class="row" style="margin-bottom:1rem"><div style="flex:1;min-width:220px"><input id="rnq" placeholder="Search student name or School ID" maxlength="60" aria-label="Search renewal requests"></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Student</th><th>Sent</th><th>Note given</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rnRows"></tbody>
+        </table></div>
+        <p class="muted" id="rnEmpty" hidden style="font-size:.85rem;margin-top:.75rem">No renewal requests here.</p>
+      </article>
+      <article class="card" id="qrCard">
+        <h2 style="margin:0 0 .2rem;font-size:1.05rem">QR replacement requests</h2>
+        <p class="muted" style="margin:0 0 1rem;font-size:.85rem">Students whose code was deactivated by an administrator ask for a new one. Approving issues a new active QR code; the old one stays deactivated.</p>
+        <div class="tp-tabs" id="qrTabs">
+          <button data-s="pending" class="on">Pending <span id="qrPending"></span></button>
+          <button data-s="approved">Approved <span id="qrApproved"></span></button>
+          <button data-s="rejected">Rejected <span id="qrRejected"></span></button>
+          <button data-s="all">All</button>
+        </div>
+        <div class="row" style="margin-bottom:1rem"><div style="flex:1;min-width:220px"><input id="qrq" placeholder="Search student name or School ID" maxlength="60" aria-label="Search QR replacement requests"></div></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Student</th><th>Sent</th><th>Note given</th><th>Status</th><th></th></tr></thead>
+          <tbody id="qrRows"></tbody>
+        </table></div>
+        <p class="muted" id="qrEmpty" hidden style="font-size:.85rem;margin-top:.75rem">No QR replacement requests here.</p>
+      </article>
+      <dialog class="tp-dialog" id="rv" aria-labelledby="rvTitle"></dialog>
+      <dialog class="tp-dialog" id="dlg">
+        <h2 id="dlgTitle" style="margin:0;font-size:1.1rem"></h2>
+        <p class="muted" id="dlgInfo" style="font-size:.85rem"></p>
+        <label class="label-caps muted" for="dlgText" id="dlgLabel"></label>
+        <input id="dlgText" maxlength="255">
+        <p class="err-text" id="dlgErr"></p>
+        <div class="row"><button id="dlgCancel" type="button">Cancel</button><button class="primary" id="dlgOk" type="button">Confirm</button></div>
+      </dialog>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+
+  let status = "pending", q = "", cStatus = "pending", cQ = "", rnStatus = "pending", rnQ = "", qrStatus = "pending", qrQ = "";
+  const tbody = document.getElementById("rows"), cbody = document.getElementById("cRows"), dlg = document.getElementById("dlg"), rv = document.getElementById("rv");
+  const fail = (err) => showToast(errText(err));
+
+  /* ---------- documents: small status badges for the list ---------- */
+  const docBadge = (label, st) => st === "none" ? `<span class="muted" style="font-size:.72rem">${label} –</span>` : badge(st === "verified" ? "verified" : st === "rejected" ? "rejected" : "pending", `${label} ${st}`);
+
+  /* ---------- applications (the existing table) ---------- */
+  async function load() {
+    const d = await api(`/admin/verifications?status=${status}&limit=100${q ? "&q=" + encodeURIComponent(q) : ""}`);
+    document.getElementById("cPending").textContent = `(${d.counts.pending})`;
+    document.getElementById("cVerified").textContent = `(${d.counts.verified})`;
+    document.getElementById("cRejected").textContent = `(${d.counts.rejected})`;
+    document.getElementById("empty").hidden = d.items.length > 0;
+    tbody.innerHTML = d.items.map((s) => {
+      const v = s.verification;
+      const acts = v.status === "pending" ? `<button class="primary" data-a="approve" data-id="${esc(s.id)}">Approve</button> <button data-a="reject" data-id="${esc(s.id)}">Reject</button>`
+        : v.status === "rejected" ? `<button data-a="reopen" data-id="${esc(s.id)}">Reopen</button>`
+        : `<button data-a="reject" data-id="${esc(s.id)}">Reject</button>`;
+      const detail = v.status === "rejected" ? `<br><span class="muted" style="font-size:.75rem">${esc(v.rejectionReason)} — ${esc(v.by || "")}</span>`
+        : v.status === "verified" ? `<br><span class="muted" style="font-size:.75rem">${esc(fmtDate(v.date))}${v.by ? " · " + esc(v.by) : ""}${v.note ? "<br>" + esc(v.note) : ""}</span>` : "";
+      const docs = s.documents ? `${docBadge("ID", s.documents.id)}<br>${docBadge("Enrollment", s.documents.enrollment)}` : "";
+      return `<tr><td><strong>${esc(s.name)}</strong><br><span class="muted" style="font-size:.75rem">${esc(s.email)}</span></td>
+        <td class="mono">${esc(s.schoolId)}</td><td>${esc(s.program)} · ${esc(s.level)}<br><span class="muted" style="font-size:.75rem">${esc(s.school)}</span></td>
+        <td class="mono" style="font-size:.78rem">${esc(fmtDateTime(v.submittedAt))}</td><td style="white-space:nowrap">${docs}</td><td>${verificationBadge(v)}${detail}</td>
+        <td style="white-space:nowrap"><button data-a="review" data-id="${esc(s.id)}">Review</button> ${acts}</td></tr>`;
+    }).join("");
+  }
+
+  /* One small question dialog used by every decision on this page. Resolves to the typed text, or null when cancelled. */
+  const ask = (title, info, label, required) => new Promise((resolve) => {
+    document.getElementById("dlgTitle").textContent = title; document.getElementById("dlgInfo").textContent = info;
+    document.getElementById("dlgLabel").textContent = label; const t = document.getElementById("dlgText"); t.value = "";
+    document.getElementById("dlgErr").textContent = "";
+    const done = (v) => { dlg.close(); resolve(v); };
+    document.getElementById("dlgCancel").onclick = () => done(null);
+    document.getElementById("dlgOk").onclick = () => {
+      if (required && t.value.trim().length < 3) { document.getElementById("dlgErr").textContent = "Enter a reason (at least 3 characters)."; return; }
+      done(t.value.trim());
+    };
+    dlg.showModal(); t.focus();
+  });
+
+  /* Approve / reject / reopen an application. Returns true when something changed. (Same rules as before; shared by the table and the review panel.) */
+  async function decide(action, id, name) {
+    if (action === "approve") {
+      const reg = (await api(`/admin/verifications/${id}/registrar-check`)).registrar;
+      const docs = (await api(`/admin/verifications/${id}`)).documents.filter((d) => d.submitted && d.status !== "verified");
+      const warn = docs.length ? ` Not verified yet: ${docs.map((d) => d.label).join(", ")}.` : "";
+      const note = await ask(`Approve ${name}?`, (reg.detail || "Confirm you have checked this student against the school's enrollment records.") + warn, "Note (optional)", false);
+      if (note === null) return false;
+      await api(`/admin/verifications/${id}/approve`, { method: "POST", body: note ? { note } : {} });
+      showToast(`${name} is now verified.`);
+    } else if (action === "reject") {
+      const reason = await ask(`Reject ${name}?`, "The student will be told the reason. Any active QR code is revoked.", "Reason", true);
+      if (reason === null) return false;
+      await api(`/admin/verifications/${id}/reject`, { method: "POST", body: { reason } });
+      showToast(`${name} was rejected.`);
+    } else {
+      await api(`/admin/verifications/${id}/reopen`, { method: "POST" });
+      showToast(`${name} is back in the pending list.`);
+    }
+    return true;
+  }
+
+  /* ---------- review panel: details, application decision and uploaded documents ---------- */
+  const fmtSize = (n) => (n == null ? "" : n < 1024 ? n + " B" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1) + " MB");
+  function renderReview(d) {
+    const s = d.student, v = s.verification, p = d.profile;
+    const photo = p.profilePhoto ? `<img class="rv-photo" src="${esc(p.profilePhoto)}" alt="Profile photo of ${esc(s.name)}">` : "";
+    const decision = v.status === "rejected" ? `<p style="margin:.2rem 0 0;font-size:.85rem"><strong>Reason recorded:</strong> ${esc(v.rejectionReason)}</p><p class="muted" style="margin:.2rem 0 0;font-size:.78rem">${esc(v.by || "")} · ${esc(fmtDateTime(v.date))}</p>`
+      : v.status === "verified" ? `<p style="margin:.2rem 0 0;font-size:.85rem">${v.note ? `<strong>Note recorded:</strong> ${esc(v.note)}` : "Approved with no note."}</p><p class="muted" style="margin:.2rem 0 0;font-size:.78rem">${esc(v.by || "")} · ${esc(fmtDateTime(v.date))}</p>`
+      : `<p class="muted" style="margin:.2rem 0 0;font-size:.85rem">Waiting for a decision. Submitted ${esc(fmtDateTime(v.submittedAt))}.</p>`;
+    const appActs = v.status === "pending" ? `<button class="primary" data-rv="approve">Approve application</button> <button data-rv="reject">Reject application</button>`
+      : v.status === "rejected" ? `<button data-rv="reopen">Reopen</button>` : `<button data-rv="reject">Reject application</button>`;
+    const docRows = d.documents.map((x) => {
+      const meta = x.submitted ? `${esc(x.fileType || "File")}${x.sizeBytes != null ? " · " + fmtSize(x.sizeBytes) : ""}${x.available ? "" : " · file missing on the server"}` : "Not uploaded";
+      const why = x.status === "rejected" && x.reason ? `<br><span style="font-size:.78rem">Reason: ${esc(x.reason)}</span>` : "";
+      const who = x.reviewedAt ? `<br><span class="muted" style="font-size:.74rem">${esc(x.reviewedBy || "")} · ${esc(fmtDateTime(x.reviewedAt))}</span>` : "";
+      const btns = x.submitted && x.available ? `<button data-rv="view" data-kind="${x.kind}">View</button> ${x.status !== "verified" ? `<button class="primary" data-rv="verify" data-kind="${x.kind}">Verify</button>` : ""} ${x.status !== "rejected" ? `<button data-rv="rejectdoc" data-kind="${x.kind}">Reject</button>` : ""}` : "";
+      return `<div class="rv-doc"><div><strong>${esc(x.label)}</strong> ${x.submitted ? docBadge("", x.status).replace(/>\s+/, ">") : '<span class="muted" style="font-size:.78rem">not uploaded</span>'}<br><span class="muted" style="font-size:.78rem">${meta}</span>${why}${who}</div><div class="row" style="gap:.4rem">${btns}</div></div>`;
+    }).join("");
+    rv.dataset.id = s.id; rv.dataset.name = s.name;
+    rv.innerHTML = `<div class="rv-top"><div>${photo}<div><h2 id="rvTitle" style="margin:0;font-size:1.15rem">${esc(s.name)}</h2><p class="muted mono" style="margin:.15rem 0 0;font-size:.78rem">${esc(s.schoolId)} · ${esc(s.email)}</p></div></div><div>${verificationBadge(v)}</div></div>
+      <dl class="rv-grid"><div><dt>School</dt><dd>${esc(s.school)}</dd></div><div><dt>Campus</dt><dd>${esc(p.campus)}</dd></div><div><dt>Course</dt><dd>${esc(s.program)}</dd></div>
+        <div><dt>Year level</dt><dd>${esc(s.level)}</dd></div><div><dt>Section</dt><dd>${esc(p.section)}</dd></div><div><dt>Contact number</dt><dd>${esc(s.phone || "—")}</dd></div>
+        <div><dt>Applied</dt><dd>${esc(fmtDate(v.submittedAt))}</dd></div><div><dt>How</dt><dd>${p.selfRegistered ? "Online registration" : "Added by the registrar"}</dd></div></dl>
+      <div class="rv-sec"><h3>Application decision</h3>${decision}<div class="row" style="margin-top:.6rem;gap:.4rem">${appActs}</div></div>
+      <div class="rv-sec"><h3>Uploaded documents</h3>${docRows}<p class="muted" style="font-size:.76rem;margin:.5rem 0 0">Opening a document is recorded in the activity log.</p></div>
+      ${d.pendingCorrections ? `<div class="rv-sec"><p style="margin:0;font-size:.85rem"><strong>${d.pendingCorrections}</strong> information correction request${d.pendingCorrections === 1 ? "" : "s"} waiting for this student. <a href="#corrCard" id="rvToCorr">Go to the requests</a></p></div>` : ""}
+      <div class="row"><button id="rvClose" type="button">Close</button></div>`;
+  }
+  async function openReview(id) { renderReview(await api(`/admin/verifications/${id}`)); if (!rv.open) rv.showModal(); }
+  rv.addEventListener("click", async (e) => {
+    if (e.target === rv) return rv.close();
+    if (e.target.id === "rvClose") return rv.close();
+    if (e.target.id === "rvToCorr") { rv.close(); return; }
+    const b = e.target.closest("button[data-rv]"); if (!b) return;
+    const id = rv.dataset.id, name = rv.dataset.name, kind = b.dataset.kind, act = b.dataset.rv;
+    await guarded(b, async () => {
+      if (act === "view") return openProtectedFile(`/admin/verifications/${id}/documents/${kind}`);
+      if (act === "verify") { renderReview(await api(`/admin/verifications/${id}/documents/${kind}/review`, { method: "POST", body: { decision: "verified" } })); showToast("Document marked as verified."); }
+      else if (act === "rejectdoc") {
+        const reason = await ask("Reject this document?", "The student is told the reason and can upload a new file.", "Reason", true);
+        if (reason === null) return;
+        renderReview(await api(`/admin/verifications/${id}/documents/${kind}/review`, { method: "POST", body: { decision: "rejected", reason } })); showToast("Document rejected.");
+      } else { if (!(await decide(act, id, name))) return; renderReview(await api(`/admin/verifications/${id}`)); }
+      await load();
+    });
+  });
+
+  tbody.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const id = b.dataset.id, name = b.closest("tr").querySelector("strong").textContent;
+    await guarded(b, async () => {
+      if (b.dataset.a === "review") return openReview(id);
+      if (await decide(b.dataset.a, id, name)) await load();
+    });
+  });
+  document.getElementById("tabs").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-s]"); if (!b) return;
+    status = b.dataset.s; document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b)); load().catch(fail);
+  });
+  document.getElementById("q").addEventListener("input", debounce((e) => { q = e.target.value.trim(); load().catch(fail); }));
+
+  /* ---------- information correction requests ---------- */
+  const CSTATUS = { pending: ["pending", "pending"], approved: ["verified", "approved"], rejected: ["rejected", "rejected"], cancelled: ["revoked", "cancelled by student"] };
+  async function loadCorrections() {
+    const d = await api(`/admin/correction-requests?status=${cStatus}&limit=100${cQ ? "&q=" + encodeURIComponent(cQ) : ""}`);
+    document.getElementById("ccPending").textContent = `(${d.counts.pending})`;
+    document.getElementById("ccApproved").textContent = `(${d.counts.approved})`;
+    document.getElementById("ccRejected").textContent = `(${d.counts.rejected})`;
+    document.getElementById("cEmpty").hidden = d.items.length > 0;
+    cbody.innerHTML = d.items.map((r) => {
+      const [kind, label] = CSTATUS[r.status] || ["pending", r.status];
+      const decided = r.status === "approved" || r.status === "rejected" ? `<br><span class="muted" style="font-size:.75rem">${r.adminNote ? esc(r.adminNote) + " — " : ""}${esc(r.reviewedBy || "")} · ${esc(fmtDate(r.reviewedAt))}</span>` : "";
+      const acts = r.status === "pending" ? `<button class="primary" data-c="approve" data-id="${r.id}">Approve</button> <button data-c="reject" data-id="${r.id}">Reject</button>` : "";
+      return `<tr><td><strong>${esc(r.studentName)}</strong><br><span class="muted mono" style="font-size:.75rem">${esc(r.schoolId)}</span></td>
+        <td><span class="muted" style="font-size:.75rem">${esc(r.fieldLabel)}</span><br>${esc(r.currentValue)} <span class="arrow">→</span> <strong>${esc(r.requestedValue)}</strong></td>
+        <td style="max-width:18rem;overflow-wrap:anywhere">${esc(r.reason)}</td><td class="mono" style="font-size:.78rem">${esc(fmtDateTime(r.createdAt))}</td>
+        <td>${badge(kind, label)}${decided}</td><td style="white-space:nowrap">${acts}</td></tr>`;
+    }).join("");
+  }
+
+  /* ---------- discount renewal requests ---------- */
+  const RNSTATUS = { pending: ["pending", "pending"], approved: ["active", "approved"], rejected: ["rejected", "rejected"], cancelled: ["revoked", "cancelled by student"] };
+  async function loadRenewals() {
+    const d = await api(`/admin/renewal-requests?status=${rnStatus}&limit=100${rnQ ? "&q=" + encodeURIComponent(rnQ) : ""}`);
+    document.getElementById("rnPending").textContent = `(${d.counts.pending})`;
+    document.getElementById("rnApproved").textContent = `(${d.counts.approved})`;
+    document.getElementById("rnRejected").textContent = `(${d.counts.rejected})`;
+    document.getElementById("rnEmpty").hidden = d.items.length > 0;
+    rnbody.innerHTML = d.items.map((r) => {
+      const [kind, label] = RNSTATUS[r.status] || ["pending", r.status];
+      const decided = r.status === "approved" || r.status === "rejected" ? `<br><span class="muted" style="font-size:.75rem">${r.adminNote ? esc(r.adminNote) + " — " : ""}${esc(r.reviewedBy || "")} · ${esc(fmtDateTime(r.reviewedAt))}</span>` : "";
+      const acts = r.status === "pending" ? `<button class="primary" data-r="approve" data-id="${r.id}">Approve</button> <button data-r="reject" data-id="${r.id}">Reject</button>` : "";
+      return `<tr><td><strong>${esc(r.studentName)}</strong><br><span class="muted mono" style="font-size:.75rem">${esc(r.schoolId)}</span></td>
+        <td class="mono" style="font-size:.78rem">${esc(fmtDateTime(r.createdAt))}</td><td style="max-width:18rem;overflow-wrap:anywhere">${esc(r.reason || "—")}</td>
+        <td>${badge(kind, label)}${decided}</td><td style="white-space:nowrap">${acts}</td></tr>`;
+    }).join("");
+  }
+  rnbody.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-r]"); if (!b) return;
+    const id = b.dataset.id, tr = b.closest("tr"), name = tr.querySelector("strong").textContent;
+    await guarded(b, async () => {
+      if (b.dataset.r === "approve") {
+        const note = await ask(`Approve this renewal from ${name}?`, "The student's discount validity will be extended and the pass made active again.", "Note (optional)", false);
+        if (note === null) return;
+        await api(`/admin/renewal-requests/${id}/approve`, { method: "POST", body: note ? { note } : {} });
+        showToast("Renewal approved and the pass is active again.");
+      } else {
+        const reason = await ask(`Reject this renewal from ${name}?`, "The student is told the reason.", "Reason", true);
+        if (reason === null) return;
+        await api(`/admin/renewal-requests/${id}/reject`, { method: "POST", body: { reason } });
+        showToast("Renewal rejected.");
+      }
+      await Promise.all([loadRenewals(), load()]);
+    });
+  });
+  document.getElementById("rnTabs").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-s]"); if (!b) return;
+    rnStatus = b.dataset.s; document.querySelectorAll("#rnTabs button").forEach((x) => x.classList.toggle("on", x === b)); loadRenewals().catch(fail);
+  });
+  document.getElementById("rnq").addEventListener("input", debounce((e) => { rnQ = e.target.value.trim(); loadRenewals().catch(fail); }));
+
+  /* ---------- QR replacement requests ---------- */
+  const QRSTATUS = { pending: ["pending", "pending"], approved: ["active", "approved"], rejected: ["rejected", "rejected"], cancelled: ["revoked", "cancelled by student"] };
+  async function loadQrReplacements() {
+    const d = await api(`/admin/qr-replacement-requests?status=${qrStatus}&limit=100${qrQ ? "&q=" + encodeURIComponent(qrQ) : ""}`);
+    document.getElementById("qrPending").textContent = `(${d.counts.pending})`;
+    document.getElementById("qrApproved").textContent = `(${d.counts.approved})`;
+    document.getElementById("qrRejected").textContent = `(${d.counts.rejected})`;
+    document.getElementById("qrEmpty").hidden = d.items.length > 0;
+    qrbody.innerHTML = d.items.map((r) => {
+      const [kind, label] = QRSTATUS[r.status] || ["pending", r.status];
+      const decided = r.status === "approved" || r.status === "rejected" ? `<br><span class="muted" style="font-size:.75rem">${r.adminNote ? esc(r.adminNote) + " — " : ""}${esc(r.reviewedBy || "")} · ${esc(fmtDateTime(r.reviewedAt))}</span>` : "";
+      const acts = r.status === "pending" ? `<button class="primary" data-q="approve" data-id="${r.id}">Approve</button> <button data-q="reject" data-id="${r.id}">Reject</button>` : "";
+      return `<tr><td><strong>${esc(r.studentName)}</strong><br><span class="muted mono" style="font-size:.75rem">${esc(r.schoolId)}</span></td>
+        <td class="mono" style="font-size:.78rem">${esc(fmtDateTime(r.createdAt))}</td><td style="max-width:18rem;overflow-wrap:anywhere">${esc(r.reason || "—")}</td>
+        <td>${badge(kind, label)}${decided}</td><td style="white-space:nowrap">${acts}</td></tr>`;
+    }).join("");
+  }
+  qrbody.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-q]"); if (!b) return;
+    const id = b.dataset.id, tr = b.closest("tr"), name = tr.querySelector("strong").textContent;
+    await guarded(b, async () => {
+      if (b.dataset.q === "approve") {
+        const note = await ask(`Approve this QR replacement from ${name}?`, "A new active QR code will be issued to the student.", "Note (optional)", false);
+        if (note === null) return;
+        await api(`/admin/qr-replacement-requests/${id}/approve`, { method: "POST", body: note ? { note } : {} });
+        showToast("QR replacement approved — a new QR code was issued.");
+      } else {
+        const reason = await ask(`Reject this QR replacement from ${name}?`, "The student is told the reason.", "Reason", true);
+        if (reason === null) return;
+        await api(`/admin/qr-replacement-requests/${id}/reject`, { method: "POST", body: { reason } });
+        showToast("QR replacement rejected.");
+      }
+      await Promise.all([loadQrReplacements(), load()]);
+    });
+  });
+  document.getElementById("qrTabs").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-s]"); if (!b) return;
+    qrStatus = b.dataset.s; document.querySelectorAll("#qrTabs button").forEach((x) => x.classList.toggle("on", x === b)); loadQrReplacements().catch(fail);
+  });
+  document.getElementById("qrq").addEventListener("input", debounce((e) => { qrQ = e.target.value.trim(); loadQrReplacements().catch(fail); }));
+  cbody.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-c]"); if (!b) return;
+    const id = b.dataset.id, tr = b.closest("tr"), name = tr.querySelector("strong").textContent;
+    const change = tr.children[1].textContent.replace(/\s+/g, " ").trim();
+    await guarded(b, async () => {
+      if (b.dataset.c === "approve") {
+        const note = await ask(`Approve this request from ${name}?`, `${change}. The student's record will be changed.`, "Note (optional)", false);
+        if (note === null) return;
+        await api(`/admin/correction-requests/${id}/approve`, { method: "POST", body: note ? { note } : {} });
+        showToast("Request approved and the student's record was updated.");
+      } else {
+        const reason = await ask(`Reject this request from ${name}?`, `${change}. The student is told the reason.`, "Reason", true);
+        if (reason === null) return;
+        await api(`/admin/correction-requests/${id}/reject`, { method: "POST", body: { reason } });
+        showToast("Request rejected.");
+      }
+      await Promise.all([loadCorrections(), load()]);
+    });
+  });
+  document.getElementById("cTabs").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-s]"); if (!b) return;
+    cStatus = b.dataset.s; document.querySelectorAll("#cTabs button").forEach((x) => x.classList.toggle("on", x === b)); loadCorrections().catch(fail);
+  });
+  document.getElementById("cq").addEventListener("input", debounce((e) => { cQ = e.target.value.trim(); loadCorrections().catch(fail); }));
+
+  await Promise.all([load().catch(fail), loadCorrections().catch(fail), loadRenewals().catch(fail), loadQrReplacements().catch(fail)]);
+  const want = new URLSearchParams(location.search).get("student");   // /admin-verifications.html?student=ID opens that student's review panel
+  if (want) openReview(want).catch(fail);
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

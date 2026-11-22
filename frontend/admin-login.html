@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#062B59">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/auth.css">
+<title>Administrator Login · TransitPass · Talisay City College</title>
+<meta name="description" content="Administrator sign in to the TransitPass Student Transportation Verification and Management System.">
+<link rel="stylesheet" href="css/motion.css">
+<style>
+  .ok-note{display:none;margin:0 0 1rem;padding:.7rem .9rem;border-radius:12px;font-size:.88rem;font-weight:600;background:#e8f6ec;color:#0b6b43;border:1px solid #bfe6cf}
+  .ok-note.show{display:block}
+  .btn-primary .spin{width:1.05rem;height:1.05rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;display:none}
+  .btn-primary.loading .spin{display:inline-block}.btn-primary.loading>.ico{display:none}.btn-primary[disabled]{opacity:.8;cursor:wait}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  dialog#forgot{border:0;border-radius:18px;padding:1.5rem;width:min(30rem,92vw);color:#0b1b3a;box-shadow:0 30px 80px rgba(0,0,0,.4)}
+  dialog#forgot::backdrop{background:rgba(6,22,51,.6)}
+  dialog#forgot h2{margin:0 0 .5rem;font-size:1.2rem}dialog#forgot p{margin:.4rem 0;font-size:.92rem;line-height:1.5}
+  dialog#forgot code{display:block;margin:.6rem 0;padding:.7rem .8rem;background:#eef2f9;border-radius:10px;font-size:.82rem;overflow-x:auto;white-space:nowrap}
+  dialog#forgot button{margin-top:.8rem;padding:.6rem 1.2rem;border:0;border-radius:10px;background:#071A3D;color:#fff;font-weight:700;cursor:pointer}
+</style>
+</head>
+<body class="auth-page">
+<div class="auth-bg" aria-hidden="true"></div>
+<svg class="auth-swoosh" viewBox="0 0 640 170" fill="none" aria-hidden="true"><path d="M0 168C190 160 450 100 640 0" stroke="#F4B52B" stroke-width="7"/><path d="M60 170C240 166 470 112 640 36" stroke="#F4B52B" stroke-opacity=".45" stroke-width="3"/></svg>
+<div class="auth-wrap">
+  <div class="auth-top"><a class="back-link" href="landing.html"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left"/></svg>Back to TransitPass</a></div>
+  <main class="auth-layout">
+    <section class="auth-brand" aria-label="TransitPass, Talisay City College">
+      <div class="lockup">
+        <img class="seal" src="img/tcc-seal.png" width="96" height="96" alt="Talisay City College seal">
+        <span class="lockup__rule" aria-hidden="true"></span>
+        <div class="wordmark">Transit<b>Pass</b><small>Talisay City College</small></div>
+      </div>
+      <p class="tagline">“Ride Smart. Go Further.”</p>
+      <p class="brand-lead"><strong>Student Transportation Verification and Management System</strong><br>Manage students, QR passes, drivers and transactions from one dashboard.</p>
+      <figure class="bus"><img src="img/tcc-bus.jpg" width="660" height="396" alt="TCC campus shuttle bus"></figure>
+    </section>
+    <section class="auth-card" aria-labelledby="authTitle">
+      <div class="auth-card__head">
+        <svg class="ico" aria-hidden="true"><use href="#i-login"/></svg>
+        <div>
+          <h1 id="authTitle">Administrator Login</h1>
+          <p>Sign in to open the TransitPass dashboard.</p>
+        </div>
+      </div>
+      <div class="auth-card__body">
+        <form id="loginForm" novalidate>
+          <p class="form-alert" id="error" role="alert"></p>
+          <p class="ok-note" id="note" role="status"></p>
+          <div class="field">
+            <label for="user">Username or email</label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-user"/></svg>
+              <input id="user" placeholder="Username or email" autocomplete="username" required aria-describedby="err-user">
+            </div>
+            <small class="field-error" id="err-user" role="alert"></small>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="input has-toggle">
+              <svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>
+              <input id="password" type="password" placeholder="Enter your password" autocomplete="current-password" required aria-describedby="err-password">
+              <button class="pw-toggle" type="button" data-toggle-password aria-label="Show password" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg></button>
+            </div>
+            <small class="field-error" id="err-password" role="alert"></small>
+          </div>
+          <div class="row-between">
+            <label class="check"><input type="checkbox" id="remember"> Remember me</label>
+            <a class="link" href="#" id="forgotLink">Forgot Password?</a>
+          </div>
+          <button class="btn-primary" type="submit" id="loginBtn"><svg class="ico" aria-hidden="true"><use href="#i-login"/></svg><span class="lbl">Login</span></button>
+        </form>
+        <p class="form-foot">Administrator accounts only. Drivers use the <a href="landing.html#download-app">TransitPass Driver Android App</a>.</p>
+      </div>
+    </section>
+  </main>
+  <footer class="auth-strip"><ul>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-bus"/></svg>Talisay City College</li>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Safe &amp; Reliable</li>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg>Smart Transportation</li>
+  </ul></footer>
+</div>
+<dialog id="forgot" aria-labelledby="forgotTitle">
+  <h2 id="forgotTitle">Forgot your password?</h2>
+  <p>For security, administrator passwords are not reset by email. Use one of these:</p>
+  <p><strong>1.</strong> Ask another administrator to reset it for you.</p>
+  <p><strong>2.</strong> If you are the only administrator, run this on the server (in the <b>backend</b> folder):</p>
+  <code>npm run reset-admin -- your-username NewPassword123</code>
+  <button type="button" id="forgotClose">Got it</button>
+</dialog>
+<script src="js/auth-ui.js"></script>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  // Already signed in as an administrator? Go straight to the dashboard.
+  if (getToken("staff")) api("/auth/me").then(({ admin }) => { if (admin.role === "admin") location.replace(HOME.admin); }).catch(() => {});
+
+  const REMEMBER_KEY = "transitpass.rememberedStaffUser";
+  const form = $("loginForm"), userInput = $("user"), pwInput = $("password"), remember = $("remember"), btn = $("loginBtn"), errBox = $("error"), note = $("note");
+  btn.insertAdjacentHTML("afterbegin", '<span class="spin" aria-hidden="true"></span>');
+
+  const showError = (msg) => { errBox.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg><span></span>'; errBox.querySelector("span").textContent = msg; errBox.classList.add("show"); };
+  const clearError = () => { errBox.classList.remove("show"); errBox.textContent = ""; };
+  const fieldError = (id, msg) => { const f = $(id).closest(".field"); f.classList.add("has-error"); $("err-" + id).textContent = msg; $(id).setAttribute("aria-invalid", "true"); };
+  const clearField = (id) => { $(id).closest(".field").classList.remove("has-error"); $("err-" + id).textContent = ""; $(id).removeAttribute("aria-invalid"); };
+  const setLoading = (on) => { btn.disabled = on; btn.classList.toggle("loading", on); btn.querySelector(".lbl").textContent = on ? "Signing in…" : "Login"; };
+
+  // Messages that come from being sent back to this page.
+  if (params.get("expired")) showError("Your session has expired. Please sign in again.");
+  if (params.get("idle")) showError("You were signed out after 30 minutes of inactivity. Please sign in again.");
+  if (params.get("out")) { note.textContent = "You have been signed out."; note.classList.add("show"); }
+
+  // "Remember me": keeps the username filled in AND keeps you signed in after the browser is closed (the password is never stored).
+  try { const saved = localStorage.getItem(REMEMBER_KEY); if (saved) { userInput.value = saved; remember.checked = true; } } catch (e) {}
+  userInput.addEventListener("input", () => { clearField("user"); clearError(); });
+  pwInput.addEventListener("input", () => { clearField("password"); clearError(); });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    clearError(); note.classList.remove("show");
+    const username = userInput.value.trim(), password = pwInput.value;
+    let bad = false;
+    if (!username) { fieldError("user", "Enter your username or email."); bad = true; }
+    if (!password) { fieldError("password", "Enter your password."); bad = true; }
+    if (bad) { (username ? pwInput : userInput).focus(); return; }
+    setLoading(true);
+    try {
+      const r = await api("/auth/login", { method: "POST", public: true, body: { username, password, portal: "admin" } });
+      if (r.admin.role !== "admin") throw new Error("This sign-in is for administrator accounts only.");
+      try { if (remember.checked) localStorage.setItem(REMEMBER_KEY, username); else localStorage.removeItem(REMEMBER_KEY); } catch (err) {}
+      setToken("staff", r.token, remember.checked);
+      note.textContent = "Login successful. Welcome back, " + r.admin.name + "! Opening your dashboard…"; note.classList.add("show");
+      showToast("Welcome back, " + r.admin.name + "!");
+      setTimeout(() => { location.href = HOME.admin; }, 800);
+    } catch (ex) { showError(errText(ex)); setLoading(false); pwInput.select(); }
+  });
+
+  const dlg = $("forgot");
+  $("forgotLink").addEventListener("click", (e) => { e.preventDefault(); dlg.showModal(); });
+  $("forgotClose").addEventListener("click", () => dlg.close());
+</script>
+<script src="js/motion.js"></script>
+</body>
+</html>

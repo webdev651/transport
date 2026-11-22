@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Driver Dashboard · TransitPass</title>
+  <meta name="description" content="Scan passengers, see your totals, assigned service and notifications.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/driver.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Driver</p>
+      <h1>Driver Dashboard</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Scan passengers, see your totals, assigned service and notifications.</p>
+    <div class="dp-chips" id="chips"></div>
+    </header>
+    <div class="page stack">
+      <div class="dp-banners" id="banners"></div>
+      <section class="dp-kpis" id="kpis" aria-label="My totals"></section>
+      <div class="dp-grid dp-main-side">
+        <div class="stack" style="min-width:0">
+          <article class="card dp-in"><div class="dp-head"><div><h2>Passengers scanned · last 7 days</h2><p class="sub">Your own scans only</p></div></div><div class="dp-bars" id="bars"></div>
+            <div class="dp-legend"><span><i style="background:var(--ok)"></i>Verified</span><span><i style="background:var(--warn)"></i>Flagged for review</span><span><i style="background:var(--bad)"></i>Rejected / invalid</span></div></article>
+          <div class="stack" id="scanner" style="min-width:0"></div>
+          <div class="stack" id="offline" style="min-width:0" hidden></div>
+          <article class="card dp-in"><div class="dp-head"><h2>Recent passenger verifications</h2><a class="dp-link" href="driver-history.html">All scans →</a></div><div id="feed"></div></article>
+        </div>
+        <div class="stack" style="min-width:0">
+          <article class="card dp-in"><div class="dp-head"><h2>Assigned service</h2></div><div id="service"></div></article>
+          <article class="card dp-in"><div class="dp-head"><h2>Unread notifications</h2><a class="dp-link" href="driver-notifications.html">Inbox →</a></div><div id="notifs"></div></article>
+          <article class="card dp-in" id="profile"></article>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/driver.js"></script>
+<script src="js/offline.js"></script>
+<script src="js/scanner.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["driver"]))) return;
+  const me0 = staffUser, $ = (id) => document.getElementById(id);
+  $("profile").innerHTML = `<div class="dp-head"><h2>My account</h2>${badge("active", "active")}</div>
+    <dl class="dp-kv"><div><dt>Name</dt><dd>${esc(me0.name)}</dd></div><div><dt>Username</dt><dd class="mono">${esc(me0.username)}</dd></div><div><dt>Email</dt><dd>${esc(me0.email)}</dd></div><div><dt>Vehicle / unit</dt><dd>${esc(me0.unit || "—")}</dd></div></dl>
+    <p style="margin:1rem 0 0"><a class="dp-link" href="admin-account.html">Change password or profile →</a></p>`;
+  function kpi(cls, icon, label, value, note, money) { return `<article class="card dp-kpi ${cls} dp-in"><div class="ico">${dpIcon(icon)}</div><div><p class="lbl">${esc(label)}</p><p class="val" data-v="${value}" data-m="${money ? 1 : 0}">0</p><p class="note">${note}</p></div></article>`; }
+  function paint(d) {
+    const st = d.stats, f = d.fares;
+    $("kpis").innerHTML = kpi("", "scan", "Passengers today", st.today.total, `<b>${st.allTime.total}</b> all time`)
+      + kpi("ok", "check", "Verified today", st.today.verified, `<b>${st.allTime.verified}</b> all time`)
+      + kpi("bad", "alert", "Rejected / flagged today", st.today.rejected + st.today.review, `<b>${st.allTime.rejected + st.allTime.review}</b> all time`)
+      + kpi("gold", "peso", "Fares collected today", f.today.revenue, `${f.today.count} ride${f.today.count === 1 ? "" : "s"} · ${dpMoney(f.today.discounts)} discounts`, true);
+    $("kpis").querySelectorAll(".val").forEach((v, i) => dpCount(v, Number(v.dataset.v), { money: v.dataset.m === "1" }));
+    const max = Math.max(1, ...d.daily.map((x) => x.total));
+    $("bars").innerHTML = d.daily.map((x, i) => { const h = Math.round((x.total / max) * 100), ok = x.total ? x.verified / x.total * 100 : 0, rv = x.total ? x.review / x.total * 100 : 0, no = x.total ? x.rejected / x.total * 100 : 0;
+      const wd = new Date(x.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" });
+      return `<div class="dp-bar ${i === d.daily.length - 1 ? "today" : ""}" title="${esc(x.date)}: ${x.total} scanned"><span class="n">${x.total}</span><div class="col" style="--i:${i};height:${Math.max(x.total ? 6 : 3, h)}%"><div class="ok" style="height:${ok}%"></div><div class="rv" style="height:${rv}%"></div><div class="no" style="height:${no}%"></div></div><span class="d">${esc(wd)}</span></div>`; }).join("");
+    // service
+    const s = d.service;
+    if (!s.assigned) $("service").innerHTML = dpEmpty("bus", "No service assigned yet", "The administrator has not assigned a vehicle or route to you.");
+    else $("service").innerHTML = (s.vehicle ? `<div class="dp-vehicle">${dpIcon("bus")}<div><b>${esc(s.vehicle.name)}</b><span>${esc(s.vehicle.type)} · ${s.vehicle.capacity} seats</span></div><span class="dp-plate">${esc(s.vehicle.plateNumber)}</span></div>` : "")
+      + s.routes.map((r) => `<div class="dp-route">${dpIcon("route").replace("<svg", '<svg style="width:1.2rem;height:1.2rem;flex:none;stroke:var(--royal);fill:none;stroke-width:1.8"')}<div class="path">${esc(r.name)}<small>${esc(r.origin)} → ${esc(r.destination)}</small></div><span class="st">${r.status === "active" ? badge("active", "Active") : badge("inactive", "Inactive")}</span></div>`).join("")
+      + (s.currentTrip ? `<div class="dp-trip live"><b>Trip in progress · ${esc(s.currentTrip.route)}</b><small>Started ${fmtDateTime(s.currentTrip.actualStart || s.currentTrip.startTime)}</small></div>` : "")
+      + (s.upcomingTrips.length ? `<p class="label-caps muted" style="margin:1rem 0 .6rem">Upcoming trips</p>` + s.upcomingTrips.map((t) => `<div class="dp-trip"><b>${esc(t.route)}</b><small>${fmtDateTime(t.startTime)}${t.endTime ? " – " + dpTime(t.endTime) : ""} · ${esc(t.vehicle)}</small></div>`).join("") : `<p class="muted" style="font-size:.82rem;margin:.8rem 0 0">No upcoming trips scheduled.</p>`);
+    // notifications
+    $("notifs").innerHTML = d.notifications.latest.length ? d.notifications.latest.map((n) => `<a class="dp-route" href="driver-notifications.html"><div class="path">${esc(n.title)}<small>${dpAgo(n.createdAt)}</small></div></a>`).join("") + (d.notifications.unread > d.notifications.latest.length ? `<p class="muted" style="font-size:.8rem;margin:.4rem 0 0">+ ${d.notifications.unread - d.notifications.latest.length} more unread</p>` : "") : dpEmpty("inbox", "You're all caught up", "No unread notifications.");
+    // chips + banners
+    const chip = (cls, text, href) => `<${href ? 'a href="' + href + '"' : "span"} class="dp-chip ${cls}"><i></i>${text}</${href ? "a" : "span"}>`;
+    $("chips").innerHTML = chip(d.notifications.unread ? "warn" : "", d.notifications.unread + " unread notification" + (d.notifications.unread === 1 ? "" : "s"), "driver-notifications.html")
+      + chip(s.vehicle ? "" : "muted", s.vehicle ? esc(s.vehicle.name) + " · " + esc(s.vehicle.plateNumber) : "No vehicle assigned");
+    $("banners").innerHTML = "";
+  }
+  async function refresh() {
+    const [d, hist] = await Promise.all([api("/driver/dashboard"), api("/driver/scans?limit=8")]);
+    paint(d);
+    renderFeed($("feed"), hist.items, { empty: "You haven't scanned anyone yet." });
+  }
+  TPScanner.mount($("scanner"), { onResult: () => refresh().catch(() => {}) });
+  if (window.TPOffline) {
+    TPOffline.renderPanel($("offline"));
+    TPOffline.start({ driverId: me0.id, onSynced: (n) => { showToast(`${n} offline transaction${n === 1 ? "" : "s"} synchronized.`); refresh().catch(() => {}); } });
+  }
+  try { await refresh(); } catch (e) { showToast(errText(e)); }
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

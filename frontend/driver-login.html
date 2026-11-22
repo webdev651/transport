@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#062B59">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/auth.css">
+<title>Driver Login · TransitPass · Talisay City College</title>
+<meta name="description" content="Driver sign in to the TransitPass verification dashboard, student registry and reports.">
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="auth-page">
+<div class="auth-bg" aria-hidden="true"></div>
+<svg class="auth-swoosh" viewBox="0 0 640 170" fill="none" aria-hidden="true"><path d="M0 168C190 160 450 100 640 0" stroke="#F4B52B" stroke-width="7"/><path d="M60 170C240 166 470 112 640 36" stroke="#F4B52B" stroke-opacity=".45" stroke-width="3"/></svg>
+<div class="auth-wrap">
+  <div class="auth-top"><a class="back-link" href="landing.html"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left"/></svg>Back to TransitPass</a></div>
+  <main class="auth-layout">
+    <section class="auth-brand" aria-label="TransitPass, Talisay City College">
+      <div class="lockup">
+        <img class="seal" src="img/tcc-seal.png" width="96" height="96" alt="Talisay City College seal">
+        <span class="lockup__rule" aria-hidden="true"></span>
+        <div class="wordmark">Transit<b>Pass</b><small>Talisay City College</small></div>
+      </div>
+      <p class="tagline">“Ride Smart. Go Further.”</p>
+      <p class="brand-lead">Verify student QR passes, review scan history and manage boarding, all from one dashboard.</p>
+      <figure class="bus"><img src="img/tcc-bus.jpg" width="660" height="396" alt="TCC campus shuttle bus"></figure>
+    </section>
+    <section class="auth-card" aria-labelledby="authTitle">
+      <div class="auth-card__head">
+        <svg class="ico" aria-hidden="true"><use href="#i-login"/></svg>
+        <div>
+          <h1 id="authTitle">Driver Login</h1>
+          <p>Sign in to open the verification dashboard.</p>
+        </div>
+      </div>
+      <div class="auth-card__body">
+        <form id="loginForm" novalidate>
+          <p class="form-alert" id="error" role="alert"></p>
+          <div class="field">
+            <label for="user">Username or email</label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-user"/></svg>
+              <input id="user" placeholder="your username" autocomplete="username" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="input has-toggle">
+              <svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>
+              <input id="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+              <button class="pw-toggle" type="button" data-toggle-password aria-label="Show password" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg></button>
+            </div>
+          </div>
+          <div class="row-between">
+            <label class="check"><input type="checkbox" id="remember"> Remember me</label>
+            <a class="link" href="#" id="forgotLink">Forgot password?</a>
+          </div>
+          <button class="btn-primary" type="submit"><svg class="ico" aria-hidden="true"><use href="#i-login"/></svg>Login</button>
+        </form>
+        <p class="form-foot">Driver accounts are created by your administrator.</p>
+      </div>
+    </section>
+  </main>
+  <footer class="auth-strip"><ul>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-bus"/></svg>Talisay City College</li>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Safe &amp; Reliable</li>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg>Smart Transportation</li>
+  </ul></footer>
+</div>
+<script src="js/auth-ui.js"></script>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+  if (getToken("staff")) {
+    api("/auth/me").then(({ admin }) => { location.replace(HOME[admin.role]); }).catch(() => {});
+  }
+  const REMEMBER_KEY = "transitpass.rememberedStaffUser";
+  const userInput = document.getElementById("user");
+  const remember = document.getElementById("remember");
+  const errBox = document.getElementById("error");
+  const showError = (msg) => {
+    errBox.innerHTML = '<svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg><span></span>';
+    errBox.querySelector("span").textContent = msg;
+    errBox.classList.add("show");
+  };
+  const clearError = () => { errBox.classList.remove("show"); errBox.textContent = ""; };
+
+  // "Remember me" only remembers the username on this device (never the password).
+  try {
+    const saved = localStorage.getItem(REMEMBER_KEY);
+    if (saved) { userInput.value = saved; remember.checked = true; }
+  } catch (e) {}
+  [userInput, document.getElementById("password")].forEach((el) => el.addEventListener("input", clearError));
+
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const username = userInput.value.trim();
+    const pw = document.getElementById("password").value;
+    if (!username || !pw) { showError("Enter your username and password."); return; }
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true;
+    try {
+      const r = await api("/auth/login", { method: "POST", public: true, body: { username, password: pw } });
+      try { if (remember.checked) localStorage.setItem(REMEMBER_KEY, username); else localStorage.removeItem(REMEMBER_KEY); } catch (err) {}
+      setToken("staff", r.token);
+      location.href = HOME[r.admin.role];   // administrators and drivers each land on their own dashboard
+    } catch (ex) { showError(errText(ex)); btn.disabled = false; }
+  });
+  document.getElementById("forgotLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    alert("Ask your administrator to reset your password. Drivers can't reset it themselves yet.");
+  });
+</script>
+<script src="js/motion.js"></script>
+</body>
+</html>

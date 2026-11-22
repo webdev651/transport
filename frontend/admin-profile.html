@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administrator Profile · TransitPass</title>
+<meta name="description" content="View and edit the administrator account, change the password and see the account status. TransitPass has one administrator account, which cannot be deleted or deactivated.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+<style>
+
+</style>
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Administrator Profile</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:46rem;font-size:.875rem">View and edit the administrator account, change the password and see the account status. TransitPass has one administrator account, which cannot be deleted or deactivated.</p>
+    </header>
+    <div class="page stack">
+      <div id="notices"></div>
+      <section class="am-stats" id="stats"></section>
+      <section style="display:grid;gap:1.25rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))">
+        <article class="card">
+          <p class="label-caps muted">Account details</p>
+          <div id="kv" style="margin-top:.75rem"></div>
+          <div class="am-note" id="single"></div>
+        </article>
+        <article class="card">
+          <p class="label-caps muted">Edit profile</p>
+          <form id="profileForm" novalidate style="margin-top:1rem">
+            <div class="field"><label for="name">Full name</label><input id="name" maxlength="80" required autocomplete="name"></div>
+            <div class="field"><label for="email">Email</label><input id="email" type="email" maxlength="120" required autocomplete="email"></div>
+            <div class="field"><label for="username">Username (used to sign in)</label><input id="username" maxlength="40" required autocomplete="username"></div>
+            <div class="field"><label for="phone">Phone (optional)</label><input id="phone" maxlength="40" autocomplete="tel"></div>
+            <p class="err-text" id="profileErr" role="alert"></p>
+            <p class="muted" id="profileOk" style="font-size:.8rem;min-height:1.1rem;margin:0 0 .5rem;color:var(--success)"></p>
+            <button class="primary" type="submit">Save profile</button>
+          </form>
+        </article>
+        <article class="card">
+          <p class="label-caps muted">Change password</p>
+          <form id="passwordForm" novalidate style="margin-top:1rem">
+            <div class="field"><label for="current">Current password</label><input id="current" type="password" autocomplete="current-password" required></div>
+            <div class="field"><label for="newPass">New password</label><input id="newPass" type="password" minlength="8" autocomplete="new-password" required></div>
+            <div class="field"><label for="confirmPass">Confirm new password</label><input id="confirmPass" type="password" minlength="8" autocomplete="new-password" required></div>
+            <p class="muted" style="font-size:.78rem;margin:0 0 .5rem">At least 8 characters. It must differ from the current password, must not contain your username and must not be a common password. Other devices are signed out after the change.</p>
+            <p class="err-text" id="passErr" role="alert"></p>
+            <p class="muted" id="passOk" style="font-size:.8rem;min-height:1.1rem;margin:0 0 .5rem;color:var(--success)"></p>
+            <button class="primary" type="submit">Update password</button>
+          </form>
+        </article>
+        <article class="card">
+          <p class="label-caps muted">Account protection</p>
+          <p style="font-size:.85rem;margin:.75rem 0">TransitPass has exactly <strong>one administrator account</strong>. It cannot be deleted or deactivated and no second administrator can be created. Every attempt is recorded in the activity log.</p>
+          <div class="am-actions"><button type="button" id="tryDelete">Delete account</button><button type="button" id="tryDeactivate">Deactivate account</button></div>
+          <p class="muted" style="font-size:.76rem;margin:.6rem 0 0">These buttons only demonstrate the protection: the server always refuses.</p>
+        </article>
+      </section>
+      <article class="card">
+        <p class="label-caps muted">Recent account activity</p>
+        <div class="table-wrap" style="margin-top:.75rem"><table><thead><tr><th>Date</th><th>Time</th><th>Activity</th><th>IP address</th><th>Status</th></tr></thead><tbody id="recent"></tbody></table></div>
+        <p style="margin:.75rem 0 0"><a href="admin-activity-logs.html?type=account">Open all account activity →</a></p>
+      </article>
+    </div>
+  </main>
+</div>
+
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+  const text = (id, v) => { $(id).textContent = v || ""; };
+
+  function render(d) {
+    const a = d.admin;
+    AM.stats($("stats"), [
+      { label: "Account status", value: AM.label(a.status), note: "administrator" },
+      { label: "Signed in at", value: a.lastLoginAt ? fmtDateTime(a.lastLoginAt) : "—", note: "this session" },
+      { label: "Previous sign-in", value: d.previousLoginAt ? fmtDateTime(d.previousLoginAt) : "First sign-in", note: d.failedSignInsSinceLast ? d.failedSignInsSinceLast + " failed attempt(s) since" : "no failed attempts since" }
+    ]);
+    $("kv").innerHTML = AM.kv([["Name", esc(a.name)], ["Username", esc(a.username)], ["Email", esc(a.email)], ["Phone", a.phone ? esc(a.phone) : null], ["Role", "Administrator"],
+      ["Status", AM.badge(a.status === "active" ? "active" : "inactive", AM.label(a.status))], ["Last login", a.lastLoginAt ? esc(fmtDateTime(a.lastLoginAt)) : null], ["Account created", a.createdAt ? esc(fmtDateTime(a.createdAt)) : null]]);
+    $("single").innerHTML = `<strong>Single administrator:</strong> ${d.administratorCount === 1 ? "exactly one administrator account exists." : esc(String(d.administratorCount)) + " administrator accounts exist. TransitPass expects exactly one; remove the extra ones in the database."}`;
+    $("notices").innerHTML = d.defaultPassword ? `<div class="am-note am-warn"><strong>Change your password.</strong> This account still uses the default password from the setup instructions, which is publicly known. Use the Change password form below.</div>` : "";
+    $("name").value = a.name || ""; $("email").value = a.email || ""; $("username").value = a.username || ""; $("phone").value = a.phone || "";
+    $("adminWho").textContent = a.name;
+  }
+  async function load() {
+    try { render(await api("/admin/account")); } catch (e) { AM.state($("kv"), "error", errText(e)); }
+    try {
+      const l = await api("/admin/activity-logs?type=account&limit=8");
+      $("recent").innerHTML = l.items.length ? l.items.map((r) => `<tr><td>${esc(r.date)}</td><td>${esc(r.time)}</td><td>${esc(r.description)}</td><td class="mono">${esc(r.ip || "—")}</td><td>${AM.badge(r.status === "success" ? "active" : "rejected", r.statusLabel)}</td></tr>`).join("") : `<tr><td colspan="5"><div class="am-state">No account activity yet.</div></td></tr>`;
+    } catch (e) { AM.state($("recent"), "error", errText(e)); }
+  }
+
+  $("profileForm").addEventListener("submit", async (e) => {
+    e.preventDefault(); text("profileErr", ""); text("profileOk", "");
+    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
+    try {
+      const r = await api("/admin/account", { method: "PATCH", body: { name: $("name").value, email: $("email").value, username: $("username").value, phone: $("phone").value } });
+      setToken("staff", r.token);
+      text("profileOk", r.changed.length ? "Profile saved (" + r.changed.join(", ") + ")." : "Nothing changed.");
+      await load();
+    } catch (x) { text("profileErr", errText(x)); } finally { btn.disabled = false; }
+  });
+
+  $("passwordForm").addEventListener("submit", async (e) => {
+    e.preventDefault(); text("passErr", ""); text("passOk", "");
+    if ($("newPass").value !== $("confirmPass").value) { text("passErr", "The new password and its confirmation do not match."); return; }
+    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
+    try {
+      const r = await api("/admin/account/password", { method: "POST", body: { current: $("current").value, new: $("newPass").value, confirm: $("confirmPass").value } });
+      setToken("staff", r.token);
+      e.target.reset(); text("passOk", "Password updated. Other devices were signed out.");
+      await load();
+    } catch (x) { text("passErr", errText(x)); } finally { btn.disabled = false; }
+  });
+
+  // the server refuses both (and records the attempt); the page just shows the message
+  [["tryDelete", "/admin/account", "DELETE"], ["tryDeactivate", "/admin/account/deactivate", "POST"]].forEach(([id, path, method]) => {
+    $(id).addEventListener("click", async () => {
+      try { await api(path, { method }); } catch (x) { showToast(errText(x)); load(); }
+    });
+  });
+  load();
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

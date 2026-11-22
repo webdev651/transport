@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coming soon · TransitPass</title>
+<meta name="description" content="Scan volume, subsidy released, denials and the verification queue, live from the database.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-dashboard.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <a href="landing.html" class="brand-logo"><img src="img/dash-logo.png" alt="TransitPass"></a>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav" aria-label="Administrator navigation"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps" style="margin:0;font-size:.65rem">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-weight:600">…</p>
+      <p id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+    <img class="side-city" src="img/dash-side-city.png" alt="">
+  </aside>
+  <main>
+    <header class="topbar">
+      <button class="burger" id="navToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="sidebar">☰</button>
+      <form class="search" id="searchForm" role="search"><input id="gq" type="search" placeholder="Search students by name or ID…" aria-label="Search students" maxlength="60"></form>
+      <span class="spacer"></span>
+      <a class="bell" id="bell" href="admin-verifications.html" aria-label="Pending verifications" hidden>🔔<b id="bellN">0</b></a>
+      <div class="profile">
+        <button id="profBtn" aria-haspopup="true"><span class="avatar" id="av">A</span><span class="who"><span id="pName">Admin</span><small>Administrator</small></span> ▾</button>
+        <div class="menu" id="profMenu"><a href="admin-account.html">My Account</a><a href="#" id="logout2">Log out</a></div>
+      </div>
+    </header>
+    <div class="ad-wrap">
+      <section class="ad-card ad-soon" id="soon"></section>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+(async () => {
+  const $ = (id) => document.getElementById(id);
+  if (!(await requireStaff(["admin"]))) return;
+  $("pName").textContent = staffUser.name; $("av").textContent = initials(staffUser.name);
+  $("navToggle").addEventListener("click", () => { if (innerWidth > 860) document.body.classList.toggle("collapsed"); });
+  $("profBtn").onclick = (e) => { e.stopPropagation(); $("profMenu").classList.toggle("open"); };
+  document.addEventListener("click", () => $("profMenu").classList.remove("open"));
+  $("logout2").onclick = (e) => { e.preventDefault(); logoutStaff(); };
+  $("searchForm").addEventListener("submit", (e) => { e.preventDefault(); const q = $("gq").value.trim(); location.href = "students.html" + (q ? "?q=" + encodeURIComponent(q) : ""); });
+  const IC = { fare: "M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6", transactions: "M3 7h18M3 12h18M3 17h12", users: "M16 11a4 4 0 1 0-8 0M4 21a8 8 0 0 1 16 0M19 8v6M22 11h-6", activity: "M3 12h4l3-8 4 16 3-8h4", settings: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4" };
+  const MODULES = {
+    fare: ["Fare and Discount Management", "Set the base fare, discount percentage and rules for each transport operator.", ["Base fare and per-route fares", "Student discount percentage", "Discount validity rules"]],
+    transactions: ["Transactions", "A full transaction ledger with filters and exports. For now, recent transactions are on the Dashboard and every scan is in Scan History.", ["Filter by date, driver and student", "Export to CSV / PDF", "Transaction audit trail"]],
+    users: ["User Management", "Create and manage administrator accounts and their permissions. Drivers are managed on the Drivers page.", ["Add and deactivate administrators", "Role permissions", "Password resets"]],
+    activity: ["Activity Logs", "The complete, searchable history of administrator actions. The latest activities already appear on the Dashboard.", ["Search and filter by user, action and date", "Export the log", "Failed sign-in monitoring"]],
+    settings: ["Settings", "System-wide settings for TransitPass.", ["Organization details", "Session and security options", "Notification settings"]]
+  };
+  const key = new URLSearchParams(location.search).get("m");
+  if (key === "transactions") { location.replace("admin-transactions.html"); return; }   // the real page exists now (Stage 3)
+  const known = Object.prototype.hasOwnProperty.call(MODULES, key);
+  const m = known ? MODULES[key] : ["This module", "This part of TransitPass is planned for a later phase.", []];
+  document.title = m[0] + " · TransitPass";
+  $("soon").innerHTML = `<span class="ad-ic"><svg viewBox="0 0 24 24"><path d="${known ? IC[key] : "M12 8v4M12 16h.01M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"}"/></svg></span>
+    <span class="ad-pill">Coming in a future phase</span><h2>${esc(m[0])}</h2><p>${esc(m[1])}</p>
+    ${m[2].length ? `<ul>${m[2].map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+    <a class="ad-btn primary" href="admin-dashboard.html">Back to Dashboard</a>`;
+})();
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

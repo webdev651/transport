@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fare and Discount Management · TransitPass</title>
+<meta name="description" content="Set regular fares and student discounts, per route or for all routes, with start and expiry dates.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Fare and Discount Management</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:44rem;font-size:.875rem">Set the regular fare and the student discount for every route (or for all routes at once), choose when each rule starts and expires, and switch rules or discounts on and off. The driver scanner charges whatever is in force here.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-stats" id="stats"></div>
+      <p class="err-text" id="fallback" hidden style="margin:0">No default fare rule is in force, so the scanner is using the original built-in values. Add a default rule (leave “Applies to” on “All routes”).</p>
+      <article class="card">
+        <h2 style="font-size:1.05rem;margin:0 0 .25rem">Check the fare</h2>
+        <p class="muted" style="font-size:.82rem;margin:0 0 .75rem">Shows what a verified student would be charged — the same calculation the scanner uses.</p>
+        <div class="am-bar">
+          <div style="min-width:220px"><select id="cRoute" aria-label="Route"></select></div>
+          <div style="width:170px"><input type="date" id="cDate" aria-label="Date"></div>
+          <button id="cGo">Check fare</button>
+        </div>
+        <p id="cOut" class="mono" style="margin:0;font-size:.92rem" aria-live="polite"></p>
+      </article>
+      <article class="card">
+        <div class="am-bar">
+          <div class="grow"><input id="q" placeholder="Search route or note" maxlength="60" aria-label="Search fare rules"></div>
+          <div style="width:200px"><select id="fRoute" aria-label="Route filter"></select></div>
+          <div style="width:150px"><select id="fState" aria-label="Status"><option value="all">All statuses</option><option value="current">In force</option><option value="upcoming">Upcoming</option><option value="expired">Expired</option><option value="inactive">Inactive</option></select></div>
+          <button class="primary" id="addBtn">Add fare rule</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Applies to</th><th>Regular fare</th><th>Student discount</th><th>Effective dates</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="am-pager" id="pager"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+  let items = [], routes = [];
+  const RULE = { current: ["active", "In force"], upcoming: ["pending", "Upcoming"], expired: ["expired", "Expired"], inactive: ["inactive", "Inactive"] };
+  const DISC = { active: ["active", "Discount on"], off: ["inactive", "Discount off"], scheduled: ["pending", "Discount scheduled"], expired: ["expired", "Discount ended"], none: ["inactive", "No discount"] };
+  const pill = (map, k) => AM.badge(map[k][0], map[k][1]);
+  const range = (a, b) => `${a ? esc(a) : "—"} → ${b ? esc(b) : "no end date"}`;
+  const routeOpts = (first) => [first, ...routes.map((r) => [r.id, r.name + (r.status === "active" ? "" : " (inactive)")])];
+
+  async function loadSummary() {
+    const s = await api("/admin/fares/summary");
+    AM.stats($("stats"), [{ label: "Default fare", value: AM.money(s.defaultFare), note: "all routes without their own fare" }, { label: "Student discount", value: s.defaultPercent + "%", note: "on the default fare" },
+      { label: "Routes with own fare", value: `${s.routesWithOwnFare} / ${s.activeRoutes}`, note: "active routes" }, { label: "Scheduled changes", value: s.upcoming, note: "start in the future" }]);
+    $("fallback").hidden = !s.usingFallback;
+  }
+  const fields = (isNew) => [
+    { name: "routeId", label: "Applies to", type: "select", options: routeOpts(["", "All routes (default fare)"]), hint: "A route’s own fare overrides the default." },
+    { name: "regularFare", label: "Regular fare (₱)", type: "number", required: true, min: 0.01, max: 9999.99, step: 0.01 },
+    { name: "discountPercent", label: "Student discount (%)", type: "number", required: true, min: 0, max: 100, step: 0.01, hint: "0 means no discount." },
+    { name: "effectiveFrom", label: "Starts on", type: "date", required: true },
+    { name: "effectiveUntil", label: "Expires on", type: "date", hint: "Leave empty for no expiration." },
+    { name: "discountStart", label: "Discount starts on (optional)", type: "date" },
+    { name: "discountEnd", label: "Discount ends on (optional)", type: "date" },
+    { name: "notes", label: "Note", maxlength: 255 },
+    { name: "password", label: "Your password", type: "password", required: true, hint: "Fare changes affect what students pay, so please confirm it is you." }
+  ];
+  const payload = (v) => ({ routeId: v.routeId === "" ? null : Number(v.routeId), regularFare: Number(v.regularFare), discountPercent: Number(v.discountPercent), effectiveFrom: v.effectiveFrom, effectiveUntil: v.effectiveUntil,
+    discountStart: v.discountStart, discountEnd: v.discountEnd, notes: v.notes, password: v.password });
+  const refresh = () => { list.load(); loadSummary().catch(() => {}); };
+
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/fares", empty: "No fare rules match. Use “Add fare rule”.",
+    params: () => ({ q: $("q").value.trim(), route: $("fRoute").value, state: $("fState").value }),
+    onData: (d) => { items = d.items; },
+    row: (r) => `<tr><td><strong>${r.routeName ? esc(r.routeName) : "All routes (default)"}</strong>${r.notes ? `<br><span class="muted" style="font-size:.74rem">${esc(r.notes)}</span>` : ""}</td>
+      <td class="mono">${AM.money(r.regularFare)}</td>
+      <td>${r.discountPercent}% → <span class="mono">${AM.money(r.discountedFare)}</span><br>${pill(DISC, r.discountState)}${r.discountStart || r.discountEnd ? `<br><span class="muted" style="font-size:.74rem">${range(r.discountStart, r.discountEnd)}</span>` : ""}</td>
+      <td class="mono" style="font-size:.82rem">${range(r.effectiveFrom, r.effectiveUntil)}</td><td>${pill(RULE, r.state)}</td>
+      <td><div class="am-actions"><button data-a="edit" data-id="${r.id}">Edit</button>
+        <button data-a="disc" data-id="${r.id}">${r.discountActive ? "Turn discount off" : "Turn discount on"}</button>
+        ${r.isActive ? `<button data-a="off" data-id="${r.id}">Deactivate</button>` : `<button class="primary" data-a="on" data-id="${r.id}">Activate</button>`}</div></td></tr>`
+  });
+
+  $("addBtn").onclick = async () => {
+    await AM.form({ title: "Add fare rule", wide: true, fields: fields(true), submit: "Save rule", initial: { effectiveFrom: AM.today() },
+      onSubmit: async (v) => { await api("/admin/fares", { method: "POST", body: payload(v) }); showToast("Fare rule saved."); } });
+    refresh();
+  };
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const r = items.find((x) => String(x.id) === b.dataset.id), a = b.dataset.a, who = r.routeName || "all routes";
+    if (a === "edit") {
+      await AM.form({ title: `Edit fare rule — ${who}`, wide: true, fields: fields(false), submit: "Save changes", intro: "Changes apply to rides from now on. Past transactions keep the amounts they were charged.",
+        initial: { routeId: r.routeId ?? "", regularFare: r.regularFare, discountPercent: r.discountPercent, effectiveFrom: r.effectiveFrom, effectiveUntil: r.effectiveUntil || "", discountStart: r.discountStart || "", discountEnd: r.discountEnd || "", notes: r.notes || "" },
+        onSubmit: async (v) => { await api(`/admin/fares/${r.id}`, { method: "PATCH", body: payload(v) }); showToast("Fare rule updated."); } });
+      return refresh();
+    }
+    const on = a === "on" || (a === "disc" && !r.discountActive);
+    const what = a === "disc" ? { path: "discount", title: on ? "Turn the discount on?" : "Turn the discount off?", msg: on ? `Students riding ${who} get ${r.discountPercent}% off again (within the discount dates).` : `Students riding ${who} will pay the full regular fare until it is turned back on.`, ok: on ? "Turn on" : "Turn off" }
+      : { path: "status", title: on ? "Activate this rule?" : "Deactivate this rule?", msg: on ? `The rule for ${who} will be used for rides on its dates.` : `The rule for ${who} stops being used. Another rule (or the default) takes over.`, ok: on ? "Activate" : "Deactivate" };
+    await AM.confirm({ title: what.title, message: what.msg, confirm: what.ok, danger: !on, password: true, run: (v) => api(`/admin/fares/${r.id}/${what.path}`, { method: "POST", body: { active: on, password: v.password } }).then(() => showToast("Done.")) });
+    refresh();
+  });
+  $("cGo").onclick = async () => {
+    const out = $("cOut"); out.textContent = "…";
+    try {
+      const c = await api(`/admin/fares/calculate?${AM.q({ routeId: $("cRoute").value, date: $("cDate").value })}`);
+      out.textContent = `${c.routeName || "Default (all routes)"} · ${c.day}: regular ${AM.money(c.regularFare)}; student pays ${AM.money(c.discountedFare)} (${c.discountPercent}% off, saves ${AM.money(c.discountAmount)}). Source: ${c.source === "env" ? "built-in fallback" : c.source === "route" ? "the route’s own rule #" + c.ruleId : "default rule #" + c.ruleId}.`;
+    } catch (x) { out.textContent = errText(x); }
+  };
+  $("q").addEventListener("input", debounce(() => list.load(true)));
+  $("fRoute").addEventListener("change", () => list.load(true)); $("fState").addEventListener("change", () => list.load(true));
+
+  try {
+    routes = (await api("/admin/routes?limit=200")).items;
+    const fill = (el, first) => { el.innerHTML = routeOpts(first).map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join(""); };
+    fill($("fRoute"), ["all", "All routes and default"]);     $("fRoute").querySelector("option").insertAdjacentHTML("afterend", '<option value="default">Default fare only</option>');
+    fill($("cRoute"), ["", "Default (all routes)"]);
+  } catch (e) { showToast(errText(e)); }
+  $("cDate").value = AM.today();
+  loadSummary().catch((e) => showToast(errText(e)));
+  list.load();
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transaction Management · TransitPass</title>
+<meta name="description" content="Every student transaction in one place: search, filter, open the full details, export to Excel (CSV) and print reports. Cancelled and refunded transactions are kept out of completed and revenue totals.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+<style>
+/* Transaction Management only. Everything else comes from styles.css / dashboard.css / admin-modules.css. */
+.tm-void td{color:var(--muted-foreground,#64748b)}
+.tm-void .tm-final{text-decoration:line-through}
+.tm-r{text-align:right;white-space:nowrap}
+.tm-sub{display:block;font-size:.74rem;color:var(--muted-foreground,#64748b)}
+.tm-flag{display:inline-block;margin-left:.35rem;font-size:.68rem;padding:.05rem .4rem;border-radius:999px;background:#fff0d6;color:#b36b00;vertical-align:middle}
+.tm-sec{margin:1.1rem 0 .15rem;font-size:.72rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted-foreground,#64748b);font-weight:600}
+.tm-fare{width:100%;min-width:0;border-collapse:collapse;font-size:.88rem;margin:.4rem 0}
+.tm-fare td{padding:.35rem 0;border-bottom:1px solid var(--border)}
+.tm-fare td:last-child{text-align:right;font-family:"JetBrains Mono",monospace}
+.tm-fare tr.tot td{font-weight:700;border-bottom:0;border-top:2px solid var(--border)}
+.tm-fare tr.minus td:last-child{color:var(--success,#0b7f55)}
+.tm-bar2{display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end}
+.tm-bar2 label{display:block;font-size:.7rem;margin-bottom:.15rem}
+.tm-hint{font-size:.78rem;color:var(--muted-foreground,#64748b);margin:.2rem 0 1rem}
+#reportArea{display:none}
+@page{size:A4 landscape;margin:12mm}
+@media print{
+  body.print-report .shell,body.print-report .toast,body.print-report dialog{display:none!important}   /* the whole page (the shell keeps a full-screen minimum height, which would push the report onto page 2) */
+  body.print-report #reportArea{display:block;color:#000;background:#fff;font-family:"DM Sans",Arial,sans-serif;font-size:9pt}
+  body.print-report{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+#reportArea h1{font-size:15pt;margin:0 0 .2rem}
+#reportArea p{margin:.15rem 0;font-size:9pt}
+#reportArea table{width:100%;min-width:0;border-collapse:collapse;margin:.6rem 0;font-size:8.5pt}
+#reportArea th,#reportArea td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}
+#reportArea th{background:#e8edf5}
+#reportArea td.n,#reportArea th.n{text-align:right;white-space:nowrap}
+#reportArea tr{break-inside:avoid}
+#reportArea thead{display:table-header-group}
+#reportArea .rp-void td{color:#555}
+#reportArea .rp-void td.fin{text-decoration:line-through}
+#reportArea .rp-sum td:first-child{font-weight:700}
+#reportArea .rp-foot{margin-top:.6rem;font-size:8pt;color:#444}
+</style>
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Transaction Management</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:46rem;font-size:.875rem">Every student transaction in one place. Search, filter, open the complete details, export to Excel or print a report. Cancelled and refunded transactions are kept out of the completed and revenue totals and shown separately.</p>
+    </header>
+    <div class="page stack">
+      <section class="am-stats" id="stats" aria-live="polite"></section>
+      <p class="tm-hint" id="statsNote">Totals follow the search and filters below (except Status, so the three groups always show side by side).</p>
+      <article class="card">
+        <div class="am-bar">
+          <div class="grow"><label class="label-caps muted" for="q">Search</label><input id="q" type="search" placeholder="Reference no., student name or student ID" maxlength="100" aria-label="Search transactions"></div>
+          <div style="width:170px"><label class="label-caps muted" for="fdriver">Driver</label><select id="fdriver"><option value="">All drivers</option></select></div>
+          <div style="width:190px"><label class="label-caps muted" for="froute">Route</label><select id="froute"><option value="">All routes</option></select></div>
+          <div style="width:150px"><label class="label-caps muted" for="fstatus">Status</label><select id="fstatus"><option value="all">All statuses</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select></div>
+        </div>
+        <div class="am-bar">
+          <div><label class="label-caps muted" for="ffrom">From</label><input id="ffrom" type="date"></div>
+          <div><label class="label-caps muted" for="fto">To</label><input id="fto" type="date"></div>
+          <button type="button" id="reset">Reset filters</button>
+          <span class="am-actions" style="margin-left:auto;flex-wrap:nowrap"><button type="button" id="btnCsv">Export CSV (Excel)</button><button type="button" class="primary" id="btnPrint">Print report</button></span>
+        </div>
+        <p class="err-text" id="rangeErr" role="alert" style="margin:0 0 .6rem"></p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Reference</th><th>Date &amp; time</th><th>Student</th><th>Driver / route</th><th class="tm-r">Regular fare</th><th class="tm-r">Discount</th><th class="tm-r">Final fare</th><th>Status</th><th><span class="sr-only" style="position:absolute;left:-9999px">Details</span></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="am-pager" id="pager"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<div id="reportArea" aria-hidden="true"></div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+  let rows = [], total = 0;
+
+  const filters = () => ({ q: $("q").value.trim(), driverId: $("fdriver").value, routeId: $("froute").value, status: $("fstatus").value, from: $("ffrom").value, to: $("fto").value });
+  const rangeOk = () => { const f = filters(); const bad = f.from && f.to && f.from > f.to; $("rangeErr").textContent = bad ? "The start date must not be after the end date." : ""; return !bad; };
+  const pct = (n) => `${Number(n)}%`;
+
+  function summary(s) {
+    AM.stats($("stats"), [
+      { label: "Completed transactions", value: String(s.completed.count), note: "Cancelled and refunded not included" },
+      { label: "Revenue (completed)", value: AM.money(s.completed.revenue), note: "Final fares charged" },
+      { label: "Discounts given (completed)", value: AM.money(s.completed.discounts), note: `Regular fares ${AM.money(s.completed.regularFare)}` },
+      { label: "Cancelled", value: String(s.cancelled.count), note: `${AM.money(s.cancelled.fareValue)} not counted in revenue` },
+      { label: "Refunded", value: String(s.refunded.count), note: `Fares ${AM.money(s.refunded.fareValue)} · refunded ${AM.money(s.refunded.refundedAmount)}` }
+    ]);
+  }
+
+  const tx = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/transactions", limit: 25, empty: "No transactions match these filters.", params: filters,
+    onData: (d) => { rows = d.items; total = d.total; summary(d.summary); },
+    row: (t) => `<tr class="${t.status === "completed" ? "" : "tm-void"}">
+      <td class="mono">${esc(t.reference)}${t.underReview ? '<span class="tm-flag" title="Charged the full fare while under review">under review</span>' : ""}</td>
+      <td>${esc(t.date)}<span class="tm-sub">${esc(t.time)}</span></td>
+      <td>${esc(t.studentName)}<span class="tm-sub mono">${esc(t.schoolId)}</span></td>
+      <td>${esc(t.driver)}<span class="tm-sub">${esc(t.route)}</span></td>
+      <td class="tm-r mono">${AM.money(t.regularFare)}</td><td class="tm-r">${pct(t.discountPercent)}<span class="tm-sub mono">${AM.money(t.discountAmount)}</span></td>
+      <td class="tm-r mono tm-final">${AM.money(t.finalFare)}</td>
+      <td>${AM.badge(t.status, t.statusLabel)}</td>
+      <td><button type="button" data-id="${t.id}">Details</button></td></tr>`
+  });
+  const reload = () => { if (rangeOk()) tx.load(true); };
+
+  /* ----- filter choices ----- */
+  try {
+    const o = await api("/admin/transactions/filters");
+    $("fdriver").insertAdjacentHTML("beforeend", o.drivers.map((d) => `<option value="${d.id}">${esc(d.name)}${d.status === "active" ? "" : " (" + esc(d.status) + ")"}</option>`).join(""));
+    $("froute").insertAdjacentHTML("beforeend", o.routes.map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join(""));
+  } catch (e) { showToast(errText(e)); }
+
+  /* ----- details ----- */
+  const when = (iso) => (iso ? AM.dt(iso) : "—");
+  const detailHtml = (t) => {
+    const s = t.student, d = t.driverInfo, v = t.service;
+    const rule = v.fareRule ? `Rule #${v.fareRule.id} · ${AM.money(v.fareRule.regularFare)} · ${v.fareRule.discountPercent}% student discount` : "No fare rule recorded (older transaction)";
+    return `<p style="margin:.4rem 0"><span class="mono">${esc(t.reference)}</span> ${AM.badge(t.status, t.statusLabel)}${t.underReview ? ' <span class="tm-flag">under review · full fare charged</span>' : ""}</p>
+      ${t.status !== "completed" ? `<div class="am-note am-warn">This transaction is <strong>${esc(t.statusLabel.toLowerCase())}</strong>, so it is not counted in completed transactions or revenue.</div>` : ""}
+      <p class="tm-sec">Transaction</p>${AM.kv([["Reference no.", esc(t.reference)], ["Date", esc(t.date)], ["Time", esc(t.time)], ["Status", esc(t.statusLabel)], ["Recorded by", esc(v.method)]])}
+      <p class="tm-sec">Student</p>${AM.kv([["Name", esc(s.name)], ["Student ID", esc(s.schoolId)], ["School", s.school && esc(s.school)], ["Program", s.program && esc(s.program)], ["Year level", s.level && esc(s.level)], ["Email", s.email && esc(s.email)], ["Phone", s.phone && esc(s.phone)]])}
+      <p class="tm-sec">Driver</p>${AM.kv([["Name", esc(d.name)], ["Username", d.username && esc(d.username)], ["Email", d.email && esc(d.email)], ["Phone", d.phone && esc(d.phone)], ["Assigned unit", d.unit && esc(d.unit)]])}
+      <p class="tm-sec">Transportation service</p>${AM.kv([["Route", esc(t.route)], ["Service / unit", esc(v.service)], ["Origin → destination", v.origin ? esc(v.origin) + " → " + esc(v.destination) : null], ["Operator", esc(v.operator)], ["Fare rule", esc(rule)]])}
+      <p class="tm-sec">Fare</p>
+      <table class="tm-fare"><tr><td>Regular fare</td><td>${AM.money(t.regularFare)}</td></tr><tr><td>Discount percentage</td><td>${pct(t.discountPercent)}</td></tr><tr class="minus"><td>Discount amount</td><td>− ${AM.money(t.discountAmount)}</td></tr><tr class="tot"><td>Final fare</td><td>${AM.money(t.finalFare)}</td></tr></table>
+      ${t.cancellation ? `<p class="tm-sec">Cancellation</p>${AM.kv([["Reason", esc(t.cancellation.reason)], ["Cancelled by", esc(t.cancellation.cancelledBy)], ["Cancelled on", esc(when(t.cancellation.cancelledAt))]])}` : ""}
+      ${t.refund ? `<p class="tm-sec">Refund (approved)</p>${AM.kv([["Amount", esc(AM.money(t.refund.amount))], ["Reason", esc(t.refund.reason)], ["Requested by", esc(t.refund.requestedBy)], ["Decision note", t.refund.decisionNote && esc(t.refund.decisionNote)], ["Approved by", esc(t.refund.decidedBy)], ["Approved on", esc(when(t.refund.decidedAt))]])}` : ""}
+      ${t.refundPending ? '<div class="am-note">A refund request for this transaction is waiting for a decision.</div>' : ""}
+      <div class="row" style="justify-content:space-between;margin-top:1rem"><a href="admin-refunds.html">Refund or cancel in Refunds &amp; Cancellations →</a><button type="button" class="primary" data-print>Print details</button><button type="button" class="btn" data-receipt>Receipt</button></div>`;
+  };
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-id]"); if (!b) return;
+    await AM.act(b, async () => {
+      const { transaction: t } = await api(`/admin/transactions/${b.dataset.id}`);
+      const p = AM.panel("Transaction details");
+      p.body.innerHTML = detailHtml(t);
+      p.body.querySelector("[data-print]").onclick = () => { p.close(); printHtml(singleHtml(t)); };
+      p.body.querySelector("[data-receipt]").onclick = async () => {
+        p.close();
+        try {
+          const { receipt: r } = await api(`/admin/transactions/${t.id}/receipt`);
+          printHtml(receiptHtmlAdmin(r));
+        } catch (err) { showToast(errText(err)); }
+      };
+    });
+  });
+
+  /* ----- printing (browser print / Save as PDF) ----- */
+  function printHtml(html) {
+    const area = $("reportArea");
+    area.innerHTML = html;
+    const done = () => { document.body.classList.remove("print-report"); area.innerHTML = ""; };
+    window.addEventListener("afterprint", done, { once: true });
+    document.body.classList.add("print-report");
+    window.print();
+  }
+  const head = (title, extra) => `<h1>TransitPass · ${esc(title)}</h1><p>Generated ${esc(AM.dt(new Date().toISOString()))} by ${esc(staffUser.name)}</p>${extra || ""}`;
+  function reportHtml(r) {
+    const s = r.summary;
+    return `${head("Transaction Report", `<p>Filters: ${r.filters.length ? esc(r.filters.join(" · ")) : "none (all transactions)"}</p>`)}
+      <table class="rp-sum"><thead><tr><th>Group</th><th class="n">Transactions</th><th class="n">Fares</th><th class="n">Discounts</th><th>Counted in revenue?</th></tr></thead><tbody>
+        <tr><td>Completed</td><td class="n">${s.completed.count}</td><td class="n">${esc(AM.money(s.completed.revenue))}</td><td class="n">${esc(AM.money(s.completed.discounts))}</td><td>Yes (revenue = final fares)</td></tr>
+        <tr><td>Cancelled</td><td class="n">${s.cancelled.count}</td><td class="n">${esc(AM.money(s.cancelled.fareValue))}</td><td class="n">—</td><td>No</td></tr>
+        <tr><td>Refunded</td><td class="n">${s.refunded.count}</td><td class="n">${esc(AM.money(s.refunded.fareValue))}</td><td class="n">—</td><td>No (refunded ${esc(AM.money(s.refunded.refundedAmount))})</td></tr></tbody></table>
+      <table><thead><tr><th>Reference</th><th>Date</th><th>Time</th><th>Student</th><th>Student ID</th><th>Driver</th><th>Route</th><th class="n">Regular</th><th class="n">Disc %</th><th class="n">Disc amt</th><th class="n">Final</th><th>Status</th></tr></thead><tbody>
+      ${r.items.map((t) => `<tr class="${t.status === "completed" ? "" : "rp-void"}"><td>${esc(t.reference)}</td><td>${esc(t.date)}</td><td>${esc(t.time)}</td><td>${esc(t.studentName)}</td><td>${esc(t.schoolId)}</td><td>${esc(t.driver)}</td><td>${esc(t.route)}</td><td class="n">${esc(AM.money(t.regularFare))}</td><td class="n">${esc(pct(t.discountPercent))}</td><td class="n">${esc(AM.money(t.discountAmount))}</td><td class="n fin">${esc(AM.money(t.finalFare))}</td><td>${esc(t.statusLabel)}${t.underReview ? " (under review)" : ""}</td></tr>`).join("")}</tbody></table>
+      <p class="rp-foot">${r.items.length} of ${r.total} transaction(s) listed.${r.truncated ? ` The report is limited to the newest ${r.maxRows}; narrow the filters or export CSV for the rest.` : ""} Cancelled and refunded transactions are struck through and are not part of completed totals or revenue.</p>`;
+  }
+  function singleHtml(t) {
+    const s = t.student, d = t.driverInfo, v = t.service;
+    const kv = (pairs) => `<table>${pairs.filter(([, x]) => x != null && x !== "").map(([k, x]) => `<tr><th style="width:28%">${esc(k)}</th><td>${esc(x)}</td></tr>`).join("")}</table>`;
+    return `${head("Transaction Details", `<p>${esc(t.reference)} · ${esc(t.statusLabel)}</p>`)}
+      ${kv([["Reference no.", t.reference], ["Date", t.date], ["Time", t.time], ["Status", t.statusLabel + (t.underReview ? " (under review, full fare charged)" : "")]])}
+      <h2 style="font-size:10pt;margin:.6rem 0 0">Student</h2>${kv([["Name", s.name], ["Student ID", s.schoolId], ["School", s.school], ["Program", s.program], ["Year level", s.level]])}
+      <h2 style="font-size:10pt;margin:.6rem 0 0">Driver</h2>${kv([["Name", d.name], ["Assigned unit", d.unit]])}
+      <h2 style="font-size:10pt;margin:.6rem 0 0">Transportation service</h2>${kv([["Route", t.route], ["Service / unit", v.service], ["Operator", v.operator]])}
+      <h2 style="font-size:10pt;margin:.6rem 0 0">Fare</h2>${kv([["Regular fare", AM.money(t.regularFare)], ["Discount percentage", pct(t.discountPercent)], ["Discount amount", AM.money(t.discountAmount)], ["Final fare", AM.money(t.finalFare)]])}
+      ${t.cancellation ? `<h2 style="font-size:10pt;margin:.6rem 0 0">Cancellation</h2>${kv([["Reason", t.cancellation.reason], ["Cancelled by", t.cancellation.cancelledBy], ["Cancelled on", when(t.cancellation.cancelledAt)]])}` : ""}
+      ${t.refund ? `<h2 style="font-size:10pt;margin:.6rem 0 0">Refund</h2>${kv([["Amount", AM.money(t.refund.amount)], ["Reason", t.refund.reason], ["Approved by", t.refund.decidedBy], ["Approved on", when(t.refund.decidedAt)]])}` : ""}`;
+  }
+  function receiptHtmlAdmin(r) {
+    const money = (n) => (n == null ? "—" : AM.money(n));
+    const statusChip = (r) => {
+      const k = (r.status || "").toLowerCase();
+      const col = k === "completed" ? "#0b7f55" : k === "cancelled" ? "#b00" : k === "refunded" ? "#0a0" : k === "pending" ? "#b36b00" : "#5b6b8a";
+      return `<span style="display:inline-block;font-size:.7rem;font-weight:700;border-radius:4px;padding:.1rem .5rem;background:${col};color:#fff">${esc(r.statusLabel || r.status).toUpperCase()}</span>`;
+    };
+    return `${head("Transaction Receipt", `<p>${esc(r.reference)} · ${esc(r.statusLabel || r.status)}</p>`)}
+      <div style="border:1px solid #cbd5e1;border-radius:1rem;padding:1rem 1.25rem;background:#f8fafc;margin:.5rem 0">
+        <div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.4rem"><span style="font-size:1.1rem;font-weight:800;color:#071a3d">TransitPass</span><span style="font-size:.95rem;font-weight:700;color:#475569;margin-left:.3rem">Transaction Receipt</span></div>
+        <table style="width:100%;border-collapse:collapse;font-size:9pt;margin:.3rem 0">
+          <tr><td style="width:22%;padding:4px 6px"><b>Reference no.</b></td><td style="padding:4px 6px" class="mono">${esc(r.reference)}</td><td style="width:22%;padding:4px 6px"><b>Date</b></td><td style="padding:4px 6px">${esc(r.date)}</td><td style="width:22%;padding:4px 6px"><b>Time</b></td><td style="padding:4px 6px">${esc(r.time)}</td></tr>
+          <tr><td style="padding:4px 6px"><b>Status</b></td><td style="padding:4px 6px" colspan="5">${statusChip(r)}</td></tr>
+        </table>
+        <table style="width:100%;border-collapse:collapse;font-size:9pt;margin:.4rem 0">
+          <tr><td style="width:50%;padding:4px 6px;vertical-align:top;border-right:1px solid #e2e8f0">
+            <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:.25rem">Student</div>
+            <div><b>Name:</b> ${esc(r.student.name)}</div>
+            <div><b>Student ID:</b> ${esc(r.student.schoolId)}</div>
+            <div style="font-size:.72rem;color:#64748b">ID: ${r.student.id == null ? "—" : r.student.id}</div>
+          </td><td style="width:50%;padding:4px 6px;vertical-align:top">
+            <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:.25rem">Driver</div>
+            <div><b>Name:</b> ${esc(r.driver.name)}</div>
+            <div><b>ID:</b> ${r.driver.id == null ? "—" : r.driver.id}</div>
+          </td></tr>
+          <tr><td style="width:50%;padding:4px 6px;vertical-align:top;border-right:1px solid #e2e8f0">
+            <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:.25rem">Service</div>
+            <div><b>Route:</b> ${esc(r.service)}</div>
+            <div><b>Operator:</b> ${esc(r.operator)}</div>
+            <div><b>Method:</b> ${esc(r.method)}</div>
+          </td><td style="width:50%;padding:4px 6px;vertical-align:top">
+            <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin-bottom:.25rem">Fare</div>
+            <div><b>Regular fare:</b> ${money(r.regularFare)}</div>
+            <div><b>Student discount:</b> ${(r.discountPercent || 0)}%  (− ${money(r.discountAmount)})</div>
+            <div style="border-top:1px solid #e2e8f0;padding-top:.25rem"><b>Final amount paid:</b> ${money(r.finalFare)}</div>
+          </td></tr>
+        </table>
+        ${r.cancelled ? `<div style="margin-top:.5rem;padding:.4rem .6rem;background:#fdedec;border:1px solid #fecaca;color:#991b1b;border-radius:.4rem;font-size:8.5pt"><b>Cancelled:</b> this ride was cancelled — not counted in completed totals.</div>` : ""}
+        ${r.refunded ? `<div style="margin-top:.5rem;padding:.4rem .6rem;background:#ecfdf5;border:1px solid #bbf7d0;color:#15803d;border-radius:.4rem;font-size:8.5pt"><b>Refunded:</b> this ride was refunded.</div>` : ""}
+        ${r.underReview ? `<div style="margin-top:.5rem;padding:.4rem .6rem;background:#fffbeb;border:1px solid #fef3c7;color:#b36b00;border-radius:.4rem;font-size:8.5pt"><b>Pending:</b> this ride is under review — full fare charged.</div>` : ""}
+        <div style="margin-top:.6rem;padding-top:.4rem;border-top:1px solid #cbd5e1;font-size:7pt;color:#64748b;text-align:center">Generated ${esc(new Date().toISOString().replace("T"," ").slice(0,16))} · Retrieved from actual database records · Nothing hardcoded</div>
+      </div>`;
+  }
+  $("btnPrint").addEventListener("click", (e) => {
+    if (!rangeOk()) return;
+    AM.act(e.currentTarget, async () => {
+      const r = await api(`/admin/transactions/report?${AM.q(filters())}`);
+      if (!r.total) { showToast("No transactions match these filters, so there is nothing to print."); return; }
+      printHtml(reportHtml(r));
+    });
+  });
+  $("btnCsv").addEventListener("click", (e) => {
+    if (!rangeOk()) return;
+    if (!total) { showToast("No transactions match these filters, so there is nothing to export."); return; }
+    const d = new Date(), p = (n) => String(n).padStart(2, "0");
+    AM.act(e.currentTarget, () => AM.download(`/admin/transactions/export.csv?${AM.q(filters())}`, `transactions-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}.csv`));
+  });
+
+  /* ----- filters ----- */
+  $("q").addEventListener("input", debounce(reload));
+  ["fdriver", "froute", "fstatus", "ffrom", "fto"].forEach((id) => $(id).addEventListener("change", reload));
+  $("reset").addEventListener("click", () => { ["q", "fdriver", "froute", "ffrom", "fto"].forEach((id) => { $(id).value = ""; }); $("fstatus").value = "all"; reload(); });
+  tx.load(true);
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

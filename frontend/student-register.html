@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#062B59">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/auth.css">
+<link rel="stylesheet" href="css/student.css">
+<title>Create Student Account · TransitPass · Talisay City College</title>
+<meta name="description" content="Create your TransitPass student account to apply for a QR discount pass.">
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="auth-page auth-page--wide">
+<div class="auth-bg" aria-hidden="true"></div>
+<svg class="auth-swoosh" viewBox="0 0 640 170" fill="none" aria-hidden="true"><path d="M0 168C190 160 450 100 640 0" stroke="#F4B52B" stroke-width="7"/><path d="M60 170C240 166 470 112 640 36" stroke="#F4B52B" stroke-opacity=".45" stroke-width="3"/></svg>
+<div class="auth-wrap">
+  <div class="auth-top"><a class="back-link" href="student-login.html"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left"/></svg>Back to student login</a></div>
+  <main class="auth-layout">
+    <section class="auth-brand" aria-label="TransitPass, Talisay City College">
+      <div class="lockup">
+        <img class="seal" src="img/tcc-seal.png" width="96" height="96" alt="Talisay City College seal">
+        <span class="lockup__rule" aria-hidden="true"></span>
+        <div class="wordmark">Transit<b>Pass</b><small>Talisay City College</small></div>
+      </div>
+      <p class="tagline">“Ride Smart. Go Further.”</p>
+      <p class="brand-lead">Your QR student pass for campus transportation: register once, get verified by the admin, then ride with your discount.</p>
+      <figure class="bus"><img src="img/tcc-bus.jpg" width="660" height="396" alt="TCC campus shuttle bus"></figure>
+    </section>
+    <section class="auth-card" aria-labelledby="authTitle">
+      <div class="auth-card__head">
+        <svg class="ico" aria-hidden="true"><use href="#i-user-plus"/></svg>
+        <div>
+          <h1 id="authTitle">Create Account</h1>
+          <p>Join TransitPass and start your journey with TCC.</p>
+        </div>
+      </div>
+      <div class="auth-card__body">
+        <form id="regForm" novalidate>
+          <div class="field-row two">
+            <div class="field" id="f-name">
+            <label for="name">Full Name</label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-user"/></svg>
+              <input id="name" placeholder="Juan D. Dela Cruz" autocomplete="name" required>
+            </div>
+            <small class="field-error" id="err-name" role="alert"></small>
+          </div>
+            <div class="field" id="f-schoolId">
+            <label for="schoolId">Student ID Number</label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-id"/></svg>
+              <input id="schoolId" placeholder="2026-0001" required>
+            </div>
+            <small class="field-error" id="err-schoolId" role="alert"></small>
+          </div>
+          </div>
+          <div class="field-row two">
+            <div class="field" id="f-school">
+            <label for="school">School</label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-school"/></svg>
+              <input id="school" placeholder="Talisay City College" required>
+            </div>
+            <small class="field-error" id="err-school" role="alert"></small>
+          </div>
+            <div class="field" id="f-program">
+            <label for="program">Course</label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-book"/></svg>
+              <input id="program" placeholder="e.g. BSIT" required>
+            </div>
+            <small class="field-error" id="err-program" role="alert"></small>
+          </div>
+          </div>
+          <div class="field-row two">
+            <div class="field" id="f-level">
+            <label for="level">Year / grade level</label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-level"/></svg>
+              <input id="level" placeholder="2nd Year" required>
+            </div>
+            <small class="field-error" id="err-level" role="alert"></small>
+          </div>
+            <div class="field" id="f-phone">
+            <label for="phone">Mobile number <span class="opt">(optional)</span></label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg>
+              <input id="phone" type="tel" placeholder="0917 000 0000" autocomplete="tel">
+            </div>
+            <small class="field-error" id="err-phone" role="alert"></small>
+          </div>
+          </div>
+          <div class="field-row two">
+            <div class="field" id="f-campus">
+              <label for="campus">Campus</label>
+              <div class="input"><svg class="ico" aria-hidden="true"><use href="#i-school"/></svg><input id="campus" placeholder="e.g. Main Campus" maxlength="120" required></div>
+              
+              <small class="field-error" id="err-campus" role="alert"></small>
+            </div>
+            <div class="field" id="f-section">
+              <label for="section">Section</label>
+              <div class="input"><svg class="ico" aria-hidden="true"><use href="#i-school"/></svg><input id="section" placeholder="e.g. A" maxlength="120" required></div>
+              
+              <small class="field-error" id="err-section" role="alert"></small>
+            </div>
+          </div>
+          <div class="field" id="f-email">
+            <label for="email">Email Address</label>
+            <div class="input">
+              <svg class="ico" aria-hidden="true"><use href="#i-mail"/></svg>
+              <input id="email" type="email" placeholder="you@school.edu.ph" autocomplete="email" required>
+            </div>
+            <small class="field-error" id="err-email" role="alert"></small>
+          </div>
+          <div class="field-row two">
+            <div class="field" id="f-password">
+            <label for="password">Password</label>
+            <div class="input has-toggle">
+              <svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>
+              <input id="password" type="password" placeholder="At least 8 characters" autocomplete="new-password" required>
+              <button class="pw-toggle" type="button" data-toggle-password aria-label="Show password" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg></button>
+            </div>
+            <small class="field-error" id="err-password" role="alert"></small>
+          </div>
+            <div class="field" id="f-confirm">
+            <label for="confirm">Confirm Password</label>
+            <div class="input has-toggle">
+              <svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg>
+              <input id="confirm" type="password" placeholder="Repeat password" autocomplete="new-password" required>
+              <button class="pw-toggle" type="button" data-toggle-password aria-label="Show password" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg></button>
+            </div>
+            <small class="field-error" id="err-confirm" role="alert"></small>
+          </div>
+          </div>
+          <p class="field-section">Photo &amp; documents</p>
+            <div class="field" id="f-photo">
+              <label for="photo">Profile photo <span class="opt">(optional)</span></label>
+              <div class="file-box"><img class="thumb" id="thumb" alt="" hidden><input id="photo" type="file" accept="image/jpeg,image/png,image/webp"></div>
+              <span class="hint">A clear face photo. JPG, PNG or WEBP.</span>
+              <small class="field-error" id="err-photo" role="alert"></small>
+            </div>
+            <div class="field" id="f-idDocument">
+              <label for="idDocument">Student ID (photo or PDF) <span class="opt">(optional)</span></label>
+              <div class="file-box"><input id="idDocument" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"></div>
+              <span class="hint">PDF, JPG or PNG, up to 5 MB.</span>
+              <small class="field-error" id="err-idDocument" role="alert"></small>
+            </div>
+            <div class="field" id="f-enrollmentDocument">
+              <label for="enrollmentDocument">Enrollment document (COR / certificate) <span class="opt">(optional)</span></label>
+              <div class="file-box"><input id="enrollmentDocument" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"></div>
+              <span class="hint">PDF, JPG or PNG, up to 5 MB.</span>
+              <small class="field-error" id="err-enrollmentDocument" role="alert"></small>
+            </div>
+          <button class="btn-primary" type="submit"><svg class="ico" aria-hidden="true"><use href="#i-user-plus"/></svg>Register</button>
+        </form>
+
+        <div class="done" id="done" role="status">
+          <div class="done__icon"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <h2>Registration received</h2>
+          <p>Your account is now <strong>waiting for admin verification</strong>. The admin will check that you are an enrolled student. You can log in now to see your status; your QR code unlocks once you are verified.</p>
+          <a class="btn-primary" href="student-login.html" style="text-decoration:none"><svg class="ico" aria-hidden="true"><use href="#i-login"/></svg>Go to login</a>
+        </div>
+
+        <p class="form-foot" id="foot">Already have an account? <a href="student-login.html">Login</a></p>
+      </div>
+    </section>
+  </main>
+  <footer class="auth-strip"><ul>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-bus"/></svg>Talisay City College</li>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Safe &amp; Reliable</li>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg>Smart Transportation</li>
+  </ul></footer>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+  if (getToken("student")) location.replace("student-dashboard.html");
+  const val = (id) => document.getElementById(id).value.trim();
+  const FIELDS = ["name", "schoolId", "school", "program", "level", "campus", "section", "phone", "email", "password", "confirm", "photo", "idDocument", "enrollmentDocument"];
+  const MAX_DOC = 5 * 1024 * 1024;
+  const fileOf = (id) => document.getElementById(id).files[0];
+  document.getElementById("photo").addEventListener("change", () => { const f = fileOf("photo"), t = document.getElementById("thumb"); if (f && /^image\//.test(f.type)) { t.src = URL.createObjectURL(f); t.hidden = false; } else t.hidden = true; });
+
+  // Shows a message under one field (and marks it red); returns the field id so the first one can be focused.
+  const fail = (id, msg) => {
+    document.getElementById("f-" + id).classList.add("has-error");
+    document.getElementById("err-" + id).textContent = msg;
+    document.getElementById(id).setAttribute("aria-invalid", "true");
+    return id;
+  };
+  const clearField = (id) => {
+    document.getElementById("f-" + id).classList.remove("has-error");
+    document.getElementById("err-" + id).textContent = "";
+    document.getElementById(id).removeAttribute("aria-invalid");
+  };
+  FIELDS.forEach((id) => { const el = document.getElementById(id); el.addEventListener("input", () => clearField(id)); el.addEventListener("change", () => clearField(id)); });
+
+  document.getElementById("regForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    FIELDS.forEach(clearField);
+    const rec = {
+      name: val("name"), schoolId: val("schoolId"), level: val("level"), school: val("school"),
+      program: val("program"), email: val("email"), phone: val("phone"), campus: val("campus"), section: val("section")
+    };
+    const pw = document.getElementById("password").value;
+    const confirmPw = document.getElementById("confirm").value;
+    const problems = [];
+    for (const id of ["name", "schoolId", "school", "program", "level", "campus", "section", "email"]) {
+      if (!rec[id]) problems.push(fail(id, "This field is required."));
+    }
+    if (rec.email && !/^\S+@\S+\.\S+$/.test(rec.email)) problems.push(fail("email", "Enter a valid email address."));
+    if (!pw) problems.push(fail("password", "Create a password."));
+    else if (pw.length < 8) problems.push(fail("password", "Password must be at least 8 characters."));
+    if (!confirmPw) problems.push(fail("confirm", "Repeat your password."));
+    else if (pw && pw !== confirmPw) problems.push(fail("confirm", "Passwords do not match."));
+    if (rec.phone && !/^[0-9+()\-\s]{7,40}$/.test(rec.phone)) problems.push(fail("phone", "Enter a valid contact number."));
+    const pf = fileOf("photo");
+    if (pf && !/^image\/(jpeg|png|webp)$/.test(pf.type)) problems.push(fail("photo", "Use a JPG, PNG or WEBP image."));
+    for (const id of ["idDocument", "enrollmentDocument"]) {
+      const f = fileOf(id);   // optional, but a chosen file must be valid
+      if (f && !/^(application\/pdf|image\/(jpeg|png))$/.test(f.type)) problems.push(fail(id, "Use a PDF, JPG or PNG file."));
+      else if (f && f.size > MAX_DOC) problems.push(fail(id, "The file must be 5 MB or smaller."));
+    }
+    if (problems.length) { document.getElementById(problems[0]).focus(); return; }
+
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true;
+    try {
+      // The server validates everything again and saves the account with verification status PENDING.
+      const fd = new FormData();
+      Object.entries({ ...rec, password: pw, confirm: confirmPw }).forEach(([k, v]) => { if (v !== "") fd.append(k, v); });
+      if (fileOf("photo")) fd.append("photo", await Student.resizePhoto(fileOf("photo")), "photo.jpg"); // shrunk in the browser first
+      if (fileOf("idDocument")) fd.append("idDocument", fileOf("idDocument"));
+      if (fileOf("enrollmentDocument")) fd.append("enrollmentDocument", fileOf("enrollmentDocument"));
+      await api("/student-portal/register", { method: "POST", public: true, body: fd });
+    } catch (ex) {
+      btn.disabled = false;
+      const msg = errText(ex);
+      // Duplicates come back as a message about the School ID or email; show it next to that field.
+      const target = /email/i.test(msg) ? "email" : /school id|id number/i.test(msg) ? "schoolId" : null;
+      if (target) { fail(target, msg); document.getElementById(target).focus(); } else showToast(msg);
+      return;
+    }
+    document.getElementById("regForm").hidden = true;
+    document.getElementById("foot").hidden = true;
+    document.getElementById("done").classList.add("show");
+    document.getElementById("authTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+</script>
+<script src="js/motion.js"></script>
+</body>
+</html>

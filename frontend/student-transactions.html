@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transaction History · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<template id="tpl">
+
+  <section class="sp-grid kpi" id="sum"></section>
+  <section class="sp-card">
+    <form id="filters" class="filters" novalidate>
+      <div class="fld"><label for="q">Search</label><input id="q" type="search" placeholder="Reference, service or driver" maxlength="100"></div>
+      <div class="fld"><label for="from">From</label><input id="from" type="date"></div>
+      <div class="fld"><label for="to">To</label><input id="to" type="date"></div>
+      <div class="fld"><label>&nbsp;</label><div class="btn-row"><button class="btn blue" type="submit">Search</button><button class="btn" type="button" id="reset">Reset</button></div></div>
+    </form>
+  </section>
+  <section class="sp-card"><div id="list"></div><div class="pager" id="pager"></div></section>
+
+</template>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+
+Student.boot({ nav: "transactions", eyebrow: "My rides", title: "Transaction History", sub: "Every ride recorded when a driver scanned your QR code." }, async () => {
+  const { S, peso, empty, openDialog, skeleton } = Student;
+  const $ = (id) => document.getElementById(id);
+  const PER = 10; let page = 0, rows = [];
+  async function load() {
+    $("list").innerHTML = skeleton(4);
+    const p = new URLSearchParams({ limit: PER, offset: page * PER });
+    if ($("q").value.trim()) p.set("q", $("q").value.trim());
+    if ($("from").value) p.set("from", $("from").value);
+    if ($("to").value) p.set("to", $("to").value);
+    const d = await S("/me/transactions?" + p); rows = d.items;
+    $("sum").innerHTML = `<article class="kpi-card purple"><span class="l">Transactions</span><span class="v">${d.summary.count}</span></article>
+      <article class="kpi-card green"><span class="l">Total discount</span><span class="v">${peso(d.summary.totalDiscount)}</span></article>
+      <article class="kpi-card blue"><span class="l">Total paid</span><span class="v">${peso(d.summary.totalPaid)}</span></article>
+      <article class="kpi-card slate"><span class="l">Regular fare total</span><span class="v">${peso(d.summary.totalRegular)}</span></article>
+      <article class="kpi-card"><span class="l">Completed</span><span class="v">${d.summary.byStatus.completed.count}</span></article>
+      <article class="kpi-card"><span class="l">Cancelled</span><span class="v">${d.summary.byStatus.cancelled.count}</span></article>
+      <article class="kpi-card"><span class="l">Refunded</span><span class="v">${d.summary.byStatus.refunded.count}</span></article>
+      <article class="kpi-card"><span class="l">Pending</span><span class="v">${d.summary.byStatus.pending.count}</span></article>`;
+    $("list").innerHTML = rows.length ? `<div class="table-wrap"><table class="rtable"><thead><tr><th>Reference</th><th>Status</th><th>Date &amp; time</th><th>Service</th><th>Driver</th><th>Regular fare</th><th>Discount</th><th>Discount amt</th><th>Final fare</th></tr></thead><tbody>${rows.map((t, i) => `
+      <tr data-i="${i}" tabindex="0"><td data-label="Reference" class="mono">${esc(t.reference)}</td><td data-label="Status">${badge(t.status, t.statusLabel)}</td><td data-label="Date &amp; time">${esc(t.date)} ${esc(t.time)}</td><td data-label="Service">${esc(t.service)}</td><td data-label="Driver">${esc(t.driver)}</td>
+      <td data-label="Regular fare">${peso(t.regularFare)}</td><td data-label="Discount">${t.discountPercent}%</td><td data-label="Discount amt">${peso(t.discountAmount)}</td><td data-label="Final fare"><b>${peso(t.finalFare)}</b></td></tr>`).join("")}</tbody></table></div>`
+      : empty("No transactions found", p.toString().replace(/limit=\d+&offset=\d+/, "") ? "Try a different search or date range." : "Rides appear here after a driver scans your QR code.");
+    const pages = Math.max(1, Math.ceil(d.total / PER));
+    $("pager").innerHTML = d.total ? `<span>Showing ${page * PER + 1}–${page * PER + rows.length} of ${d.total}</span><span class="btn-row"><button class="btn" id="prev" ${page === 0 ? "disabled" : ""}>Previous</button><button class="btn" id="next" ${page + 1 >= pages ? "disabled" : ""}>Next</button></span>` : "";
+  }
+  await load();
+  $("filters").addEventListener("submit", (e) => { e.preventDefault(); if ($("from").value && $("to").value && $("from").value > $("to").value) return showToast("“From” must be before “To”."); page = 0; load().catch((x) => showToast(errText(x))); });
+  $("reset").onclick = () => { $("filters").reset(); page = 0; load(); };
+  $("pager").addEventListener("click", (e) => { if (e.target.id === "prev") page--; else if (e.target.id === "next") page++; else return; load(); });
+  const detail = (tr) => { const t = rows[+tr.dataset.i]; if (!t) return;
+    openDialog(`<h2>Transaction details</h2><p class="sub mono">${esc(t.reference)}</p><dl class="dl"><dt>Date &amp; time</dt><dd>${esc(t.date)} ${esc(t.time)}</dd><dt>Transportation</dt><dd>${esc(t.service)}</dd><dt>Operator</dt><dd>${esc(t.operator)}</dd><dt>Driver</dt><dd>${esc(t.driver)}</dd>
+    <dt>Status</dt><dd>${esc(t.status)}${t.cancelReason ? ' <span style="color:#b00">(cancelled)</span>' : ''}${t.refundAmount != null ? ' <span style="color:#0a0">(refunded)</span>' : ''}</dd>
+    <dt>Regular fare</dt><dd>${peso(t.regularFare)}</dd><dt>Discount</dt><dd>${t.discountPercent}%</dd><dt>Discount amount</dt><dd>${peso(t.discountAmount)}</dd><dt>Final fare</dt><dd><b>${peso(t.finalFare)}</b></dd>${t.cancelReason ? `<dt>Cancelled</dt><dd>${esc(t.cancelReason)}</dd>` : ''}${t.refundAmount != null ? `<dt>Refunded</dt><dd>${peso(t.refundAmount)}</dd>` : ''}${t.note ? `<dt>Note</dt><dd>${esc(t.note)}</dd>` : ""}</dl>
+    <div class="btn-row"><button class="btn primary" data-close>Close</button><button class="btn" onclick="window.open('student-receipt.html?id=${t.id}','_blank')">Get receipt</button></div>`); };
+  $("list").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-i]"); if (tr) detail(tr); });
+  $("list").addEventListener("keydown", (e) => { if (e.key === "Enter") { const tr = e.target.closest("tr[data-i]"); if (tr) detail(tr); } });
+});
+
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

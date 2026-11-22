@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Registry · TransitPass</title>
+<meta name="description" content="Manage student discount credentials — search, filter, review status and issue passes — as part of the QR code-based verification and management system.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav">
+      <a href="admin-dashboard.html">Dashboard</a>
+      <a href="verify.html">Verify Pass</a>
+      <a href="students.html">Student Registry</a>
+      <a href="admin-scan-history.html">Scan History</a>
+      <a href="reports.html">Reports</a>
+      <a href="admin-account.html">My Account</a>
+    </nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">Driver</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem">verification.node-04</p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent)">QR Code-Based Verification & Management System</p>
+      <h1>Student Registry</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Search, filter and manage issued discount credentials: add, edit, verify or reject students, manage their QR codes, or remove records.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div class="row" style="margin-bottom:1rem">
+          <div style="flex:1;min-width:220px"><input id="q" placeholder="Search name, ID or school" aria-label="Search students" maxlength="60"></div>
+          <div style="width:170px"><select id="status" aria-label="Filter by status">
+            <option value="all">All statuses</option><option value="active">Active</option>
+            <option value="pending">Pending</option><option value="rejected">Rejected</option><option value="expired">Expired</option><option value="flagged">Flagged</option>
+          </select></div>
+          <div style="width:170px"><select id="discountFilter" aria-label="Filter by discount eligibility">
+            <option value="all">All discount status</option><option value="eligible">Eligible</option><option value="ineligible">Not eligible</option>
+          </select></div>
+          <button class="primary" id="addBtn">+ Add student</button>
+        </div>
+        <form id="addForm" style="display:none;margin-bottom:1.25rem;padding:1rem;border:1px solid var(--border);border-radius:.6rem;background:var(--muted)">
+          <p class="label-caps muted" id="formMode" style="margin:0 0 .85rem">Issue new credential</p>
+          <div class="field-row two">
+            <div class="field"><label for="addName">Full name</label><input id="addName" placeholder="Juan D. Dela Cruz" required></div>
+            <div class="field"><label for="addSchoolId">School ID</label><input id="addSchoolId" placeholder="2024-9432" pattern="\d{4}-\d{3,8}" title="Format: YYYY-#### (e.g. 2024-9432)" required></div>
+          </div>
+          <div class="field-row two">
+            <div class="field"><label for="addSchool">School</label><input id="addSchool" placeholder="Pamantasan ng Lungsod Central" required></div>
+            <div class="field"><label for="addProgram">Program / Strand</label><input id="addProgram" placeholder="BS Information Technology" required></div>
+          </div>
+          <div class="field-row two">
+            <div class="field"><label for="addLevel">Year / Grade level</label><input id="addLevel" placeholder="1st Year" required></div>
+            <div class="field"><label for="addEmail">School email</label><input id="addEmail" type="email" placeholder="you@student.school.edu.ph" required></div>
+          </div>
+          <div class="field-row two">
+            <div class="field"><label for="addPhone">Contact number</label><input id="addPhone" placeholder="0917 000 0000"></div>
+            <div class="field"><label for="addValidUntil">Discount valid until</label><input id="addValidUntil" placeholder="31 Mar 2027"></div>
+          </div>
+          <div class="field">
+            <p style="font-size:.8rem;font-weight:500;margin:0 0 .4rem">Face verification (optional)</p>
+            <div class="row" style="align-items:flex-start;gap:1rem;flex-wrap:nowrap">
+              <span id="faceEnrollPhotoBox" style="flex-shrink:0"></span>
+              <div style="flex:1;min-width:0">
+                <p class="muted" id="faceEnrollStatus" style="font-size:.8rem;margin:0 0 .6rem"></p>
+                <div class="camera-frame small" id="faceEnrollCameraFrame" style="display:none;margin:0 0 .6rem">
+                  <video id="faceEnrollVideo" playsinline autoplay muted></video>
+                  <div class="camera-reticle face"></div>
+                </div>
+                <div class="row" style="gap:.5rem">
+                  <button type="button" id="faceEnrollStartBtn" style="font-size:.78rem">Enroll face</button>
+                  <button type="button" id="faceEnrollCaptureBtn" class="primary" style="display:none;font-size:.78rem">Capture</button>
+                  <button type="button" id="faceEnrollSwitchBtn" style="display:none;font-size:.78rem">Switch camera</button>
+                  <button type="button" id="faceEnrollRetakeBtn" style="display:none;font-size:.78rem">Retake</button>
+                  <button type="button" id="faceEnrollRemoveBtn" style="display:none;font-size:.78rem">Remove face</button>
+                </div>
+                <p class="muted" id="faceEnrollHint" style="font-size:.72rem;margin:.5rem 0 0;min-height:1rem"></p>
+              </div>
+            </div>
+          </div>
+          <p class="muted" id="addError" style="font-size:.8rem;min-height:1.1rem;margin:0 0 .5rem;color:var(--destructive)"></p>
+          <div class="row">
+            <button class="primary" type="submit" id="submitLabel">Issue credential</button>
+            <button type="button" id="cancelAdd">Cancel</button>
+          </div>
+        </form>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Student</th><th>School / Program</th><th>Pass ID</th><th>Status</th><th>Discount</th><th>QR code</th><th>Valid until</th><th>Scans</th><th>Manage</th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <p class="muted" style="font-size:.78rem;margin:.9rem 0 0" id="count"></p>
+      </article>
+      <section class="cols grid">
+        <div id="pass"></div>
+        <article class="card">
+          <p class="label-caps muted">Registry summary</p>
+          <p style="margin:.6rem 0 0;font-size:.85rem">Total credentials <strong id="statTotal"></strong></p>
+          <p style="margin:.35rem 0 0;font-size:.85rem">Awaiting approval <strong id="statPending"></strong></p>
+          <p style="margin:.35rem 0 0;font-size:.85rem">Flagged for review <strong id="statFlagged"></strong></p>
+          <p style="margin:.35rem 0 0;font-size:.85rem">Discount not eligible <strong id="statIneligible"></strong></p>
+          <p class="muted" style="margin:.75rem 0 0;font-size:.78rem">New credentials arrive here as <span class="badge b-pending">pending</span> once a student registers — approve or reject them from the Manage column.</p>
+        </article>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const rows = document.getElementById("rows"), count = document.getElementById("count");
+  let students = [], stats = { total: 0, pending: 0, flagged: 0, ineligible: 0 };
+
+  // Single compact trigger per row; the full action list lives in a floating popover (usable on narrow/mobile widths).
+  function actionButtons(s) {
+    return `<button class="action-menu-btn" data-id="${esc(s.id)}" data-action="open-menu" aria-haspopup="true" aria-expanded="false">Manage <span class="chev" aria-hidden="true">▾</span></button>`;
+  }
+
+  // Menu items are described as data so the floating menu can build itself per row.
+  function actionsFor(s) {
+    const items = [];
+    const v = s.verification ? s.verification.status : "pending";
+    items.push({ label: "Edit", action: "edit" });
+    items.push({ label: "Review documents…", action: "review" });   // opens the review panel on the Verifications page
+    if (v === "pending") { items.push({ label: "Approve (verify)", action: "approve", cls: "primary-action" }, { label: "Reject…", action: "reject", cls: "danger-action" }); }
+    if (v === "verified") items.push({ label: "Reject verification…", action: "reject", cls: "danger-action" });
+    if (v === "rejected") items.push({ label: "Approve (verify)", action: "approve", cls: "primary-action" });
+    if (s.status === "active") items.push({ label: "Flag", action: "flag", cls: "danger-action" });
+    if (s.status === "flagged") items.push({ label: "Reinstate", action: "reinstate", cls: "primary-action" });
+    if (s.status !== "expired" && s.status !== "pending" && s.status !== "rejected") items.push({ label: "Revoke pass", action: "revoke", cls: "danger-action" });
+    items.push({ divider: true });
+    if (s.qrActive) items.push({ label: "Revoke QR code", action: "deactivate-qr" });
+    else items.push({ label: "Reactivate QR", action: "activate-qr" });
+    items.push({ label: s.qrActive ? "Regenerate QR" : "Issue QR code", action: "regenerate-qr" });
+    items.push({ label: "View QR", action: "view-qr" });
+    items.push({ label: "Download QR", action: "download-qr" });
+    items.push({ label: "Send QR to Gmail", action: "email-qr" });
+    items.push({ divider: true });
+    items.push(s.discountEligible === false ? { label: "Activate discount", action: "mark-eligible", cls: "primary-action" } : { label: "Deactivate discount", action: "mark-ineligible" });
+    items.push({ label: "Set validity date", action: "set-validity" });
+    items.push({ divider: true });
+    items.push({ label: "Remove", action: "remove", cls: "danger-action" });
+    return items;
+  }
+
+  // Floating popover: one shared element, repositioned/repopulated per row
+  // so it isn't clipped by the table's horizontal scroll container.
+  const actionMenu = document.createElement("div");
+  actionMenu.className = "action-menu";
+  actionMenu.setAttribute("role", "menu");
+  document.body.appendChild(actionMenu);
+  let openMenuBtn = null;
+
+  function closeActionMenu() {
+    actionMenu.classList.remove("open");
+    if (openMenuBtn) openMenuBtn.setAttribute("aria-expanded", "false");
+    openMenuBtn = null;
+  }
+
+  // Recomputes position from the trigger's current on-screen rect. Called on
+  // open, and again on scroll/resize so the popover tracks the trigger
+  // instead of closing — a fresh click can itself scroll the button into
+  // view (table-wrap, or the page), and closing on that first scroll would
+  // dismiss the menu before anyone could read it.
+  function positionMenu(btn) {
+    const r = btn.getBoundingClientRect();
+    const mw = actionMenu.offsetWidth, mh = actionMenu.offsetHeight;
+    let top = r.bottom + 6;
+    if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+    let left = r.right - mw;
+    left = Math.min(Math.max(8, left), window.innerWidth - mw - 8);
+    actionMenu.style.top = `${top}px`;
+    actionMenu.style.left = `${left}px`;
+  }
+
+  function openActionMenuFor(btn, s) {
+    if (openMenuBtn === btn) { closeActionMenu(); return; }
+    if (openMenuBtn) openMenuBtn.setAttribute("aria-expanded", "false");
+    actionMenu.innerHTML = actionsFor(s).map((it) => it.divider
+      ? `<div class="menu-divider"></div>`
+      : `<button type="button" class="${it.cls || ""}" role="menuitem" data-id="${s.id}" data-action="${it.action}">${esc(it.label)}</button>`
+    ).join("");
+    actionMenu.classList.add("open");
+    positionMenu(btn);
+    openMenuBtn = btn;
+    btn.setAttribute("aria-expanded", "true");
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!openMenuBtn) return;
+    if (actionMenu.contains(e.target) || openMenuBtn.contains(e.target)) return;
+    closeActionMenu();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeActionMenu(); });
+  window.addEventListener("scroll", () => { if (openMenuBtn) positionMenu(openMenuBtn); }, true);
+  window.addEventListener("resize", () => { if (openMenuBtn) positionMenu(openMenuBtn); });
+
+  async function load() {
+    const q = document.getElementById("q").value.trim();
+    const st = document.getElementById("status").value, dq = document.getElementById("discountFilter").value;
+    const p = new URLSearchParams({ limit: 500, status: st, discount: dq });
+    if (q) p.set("q", q);
+    const [list, sts] = await Promise.all([api("/students?" + p), api("/students/stats")]);
+    students = list.items; stats = sts; shownTotal = list.total;
+    draw();
+  }
+  let shownTotal = 0;
+
+  function draw() {
+    closeActionMenu(); // rows are about to be replaced; don't leave a menu pointing at a stale button
+    rows.innerHTML = students.map((s) => `<tr>
+        <td><strong>${esc(s.name)}</strong><br><span class="muted" style="font-size:.78rem">${esc(s.level)}</span></td>
+        <td>${esc(s.school)}<br><span class="muted" style="font-size:.78rem">${esc(s.program)}</span></td>
+        <td class="mono" style="font-size:.78rem">${esc(s.id)}<br><span class="muted" style="font-size:.72rem">School ID ${esc(s.schoolId || "—")}</span></td>
+        <td>${badge(s.status)}<br>${verificationBadge(s.verification)}</td>
+        <td>${discountBadge(s.discountEligible !== false)}</td>
+        <td>${s.qrActive ? `<span class="badge b-active">active</span>` : `<span class="badge b-expired">none</span>`}<br><span class="muted" style="font-size:.7rem">face ${s.faceEnrolled ? "on file" : "not enrolled"}</span></td>
+        <td>${esc(s.validUntil)}</td>
+        <td class="mono">${esc(s.scans)}</td>
+        <td>${actionButtons(s)}</td>
+      </tr>`).join("") || `<tr><td colspan="9" class="muted">No matching records.</td></tr>`;
+    count.textContent = `${students.length} of ${shownTotal} credentials shown`;
+    document.getElementById("statTotal").textContent = stats.total;
+    document.getElementById("statPending").textContent = stats.pending;
+    document.getElementById("statFlagged").textContent = stats.flagged;
+    document.getElementById("statIneligible").textContent = stats.ineligible;
+  }
+
+  rows.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-action]");
+    if (!b || b.dataset.action !== "open-menu") return;
+    const s = students.find((x) => x.id === b.dataset.id);
+    if (s) openActionMenuFor(b, s);
+  });
+
+  actionMenu.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-action]");
+    if (!b) return;
+    const s = students.find((x) => x.id === b.dataset.id);
+    closeActionMenu();
+    if (s) handleRowAction(b.dataset.action, s).catch((err) => showToast(errText(err)));
+  });
+
+  async function handleRowAction(action, s) {
+    const post = (a, body) => api(`/students/${encodeURIComponent(s.id)}/actions/${a}`, { method: "POST", body: body || {} });
+    if (action === "edit") return openEditForm(s);
+    if (action === "review") { location.href = `admin-verifications.html?student=${encodeURIComponent(s.id)}`; return; }
+    if (action === "view-qr") { selectedStudentId = s.id; await renderPass(); document.getElementById("pass").scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
+    if (action === "download-qr") {
+      const q = await api(`/students/${encodeURIComponent(s.id)}/qr`);
+      if (!q.payload) { showToast("This student has no active QR code yet."); return; }
+      return downloadQrCode(q.payload, s.schoolId);
+    }
+    if (action === "email-qr") { await api(`/students/${encodeURIComponent(s.id)}/email-qr`, { method: "POST" }); showToast("QR code email logged."); return load(); }
+    if (action === "remove") {
+      if (!confirm(`Remove ${s.name} (${s.id}) from the registry? This also deletes their QR codes and cannot be undone. Scan history is kept.`)) return;
+      await api(`/students/${encodeURIComponent(s.id)}`, { method: "DELETE" });
+    } else if (action === "reject") {
+      const reason = prompt(`Why is ${s.name} being rejected? (the student is told this reason)`, "");
+      if (reason === null) return;
+      if (reason.trim().length < 3) { showToast("Enter a reason (at least 3 characters)."); return; }
+      await post("reject", { reason: reason.trim() });
+    } else if (action === "revoke" || action === "deactivate-qr") {
+      if (!confirm(action === "revoke" ? `Revoke ${s.name}'s pass? Scans will be refused.` : `Revoke ${s.name}'s active QR code? Scans will be refused until it is reactivated or replaced.`)) return;
+      await post(action);
+    } else if (action === "set-validity") {
+      const current = s.validUntil === "Awaiting registrar" || s.validUntil === "Under review" ? "" : s.validUntil;
+      const next = prompt(`Set the transportation discount validity date for ${s.name} (${s.schoolId}):`, current);
+      if (next === null) return;
+      if (!next.trim()) { showToast("Validity date can't be empty."); return; }
+      await post("set-validity", { validUntil: next.trim() });
+    } else {
+      await post(action);   // approve | reinstate | flag | activate-qr | regenerate-qr | mark-eligible | mark-ineligible
+    }
+    showToast("Done.");
+    await load();
+    if (selectedStudentId) await renderPass();
+  }
+
+  const reload = debounce(() => load().catch((e) => showToast(errText(e))));
+  document.getElementById("q").addEventListener("input", reload);
+  document.getElementById("status").addEventListener("change", reload);
+  document.getElementById("discountFilter").addEventListener("change", reload);
+
+  let selectedStudentId = null;
+  async function renderPass() {
+    const passEl = document.getElementById("pass");
+    const s = students.find((x) => x.id === selectedStudentId) || students[0];
+    if (!s) { passEl.innerHTML = ""; return; }
+    const q = await api(`/students/${encodeURIComponent(s.id)}/qr`);
+    const qr = q.payload ? { payload: q.payload, expiresAt: q.expiresAt, generatedAt: q.generatedAt, generatedBy: { name: "see QR Codes page" } } : null;
+    passEl.innerHTML = passCard(s, { qr, interactive: true });
+    const dl = passEl.querySelector('[data-action="download-qr"]');
+    if (dl) dl.addEventListener("click", () => downloadQrCode(q.payload, s.schoolId));
+  }
+
+  const addForm = document.getElementById("addForm");
+  let editingId = null;
+
+  /* ---------- Face enrollment (registrar-side capture, add/edit form) ----------
+     Runs entirely client-side via the shared face-api.js loader in app.js — no
+     photo or descriptor is ever uploaded. Capture state is held here in plain
+     variables while the form is open and only written onto the student record
+     on submit, so Cancel discards it cleanly. */
+  const faceEnrollPhotoBox = document.getElementById("faceEnrollPhotoBox");
+  const faceEnrollStatus = document.getElementById("faceEnrollStatus");
+  const faceEnrollCameraFrame = document.getElementById("faceEnrollCameraFrame");
+  const faceEnrollVideo = document.getElementById("faceEnrollVideo");
+  const faceEnrollStartBtn = document.getElementById("faceEnrollStartBtn");
+  const faceEnrollCaptureBtn = document.getElementById("faceEnrollCaptureBtn");
+  const faceEnrollSwitchBtn = document.getElementById("faceEnrollSwitchBtn");
+  const faceEnrollRetakeBtn = document.getElementById("faceEnrollRetakeBtn");
+  const faceEnrollRemoveBtn = document.getElementById("faceEnrollRemoveBtn");
+  const faceEnrollHint = document.getElementById("faceEnrollHint");
+  let faceEnrollStream = null;
+  let faceEnrollFacingMode = "user"; // registrar-side capture defaults to the front/selfie camera
+  let pendingFaceDescriptor = null;
+  let pendingFacePhoto = null;
+
+  function stopFaceEnrollCamera() {
+    if (faceEnrollStream) { faceEnrollStream.getTracks().forEach((t) => t.stop()); faceEnrollStream = null; }
+    faceEnrollVideo.srcObject = null;
+    faceEnrollCameraFrame.style.display = "none";
+    faceEnrollSwitchBtn.style.display = "none";
+  }
+  function resetFaceEnrollState() {
+    stopFaceEnrollCamera();
+    pendingFaceDescriptor = null;
+    pendingFacePhoto = null;
+    faceEnrollHint.textContent = "";
+    renderFaceEnrollUI();
+  }
+  function renderFaceEnrollUI() {
+    const nameNow = document.getElementById("addName").value.trim();
+    faceEnrollPhotoBox.innerHTML = avatarOrPhoto({ facePhoto: pendingFacePhoto, name: nameNow || "?" }, "photo-tile");
+    if (pendingFacePhoto) {
+      faceEnrollStatus.textContent = "Face on file — will be used to confirm identity at boarding.";
+      faceEnrollStartBtn.style.display = "none";
+      faceEnrollRetakeBtn.style.display = "inline-block";
+      faceEnrollRemoveBtn.style.display = "inline-block";
+    } else {
+      faceEnrollStatus.textContent = "Not enrolled — this student will use QR-only verification.";
+      faceEnrollStartBtn.style.display = "inline-block";
+      faceEnrollRetakeBtn.style.display = "none";
+      faceEnrollRemoveBtn.style.display = "none";
+    }
+    faceEnrollCaptureBtn.style.display = "none";
+  }
+  async function startFaceEnrollCamera() {
+    faceEnrollHint.textContent = "";
+    if (!window.isSecureContext) { faceEnrollHint.textContent = "Camera requires HTTPS or localhost."; return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { faceEnrollHint.textContent = "Camera access isn't supported in this browser."; return; }
+    try {
+      faceEnrollStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: faceEnrollFacingMode } } });
+    } catch (err) {
+      faceEnrollHint.textContent = `Camera unavailable (${err.name || err.message || "denied"}) — this student will use QR-only verification.`;
+      return;
+    }
+    faceEnrollVideo.srcObject = faceEnrollStream;
+    const played = await faceEnrollVideo.play().catch(() => false);
+    if (!played) {
+      faceEnrollVideo.play().then().catch(() => {});
+    }
+    // Wait for video to get dimensions
+    await new Promise(r => setTimeout(r, 200));
+    if (faceEnrollVideo.videoWidth === 0) {
+      faceEnrollVideo.play().then().catch(() => {});
+    }
+    faceEnrollCameraFrame.style.display = "block";
+    faceEnrollStartBtn.style.display = "none";
+    faceEnrollRetakeBtn.style.display = "none";
+    faceEnrollCaptureBtn.style.display = "inline-block";
+    faceEnrollSwitchBtn.style.display = "inline-block";
+    faceEnrollSwitchBtn.textContent = faceEnrollFacingMode === "user" ? "Switch to back camera" : "Switch to front camera";
+  }
+  async function switchFaceEnrollCamera() {
+    if (!faceEnrollStream) return;
+    faceEnrollFacingMode = faceEnrollFacingMode === "user" ? "environment" : "user";
+    faceEnrollStream.getTracks().forEach((t) => t.stop());
+    try {
+      faceEnrollStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: faceEnrollFacingMode } } });
+    } catch (err) {
+      faceEnrollFacingMode = faceEnrollFacingMode === "user" ? "environment" : "user"; // revert on failure
+      faceEnrollHint.textContent = `Couldn't switch camera (${err.name || err.message || "unavailable"}) — this device may only have one camera.`;
+      faceEnrollStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: faceEnrollFacingMode } } }).catch(() => null);
+      if (!faceEnrollStream) return;
+    }
+    faceEnrollVideo.srcObject = faceEnrollStream;
+    const played = await faceEnrollVideo.play().catch(() => false);
+    if (!played) {
+      faceEnrollVideo.play().then().catch(() => {});
+    }
+    faceEnrollSwitchBtn.textContent = faceEnrollFacingMode === "user" ? "Switch to back camera" : "Switch to front camera";
+  }
+  faceEnrollStartBtn.addEventListener("click", startFaceEnrollCamera);
+  faceEnrollRetakeBtn.addEventListener("click", startFaceEnrollCamera);
+  faceEnrollSwitchBtn.addEventListener("click", switchFaceEnrollCamera);
+  faceEnrollCaptureBtn.addEventListener("click", async () => {
+    faceEnrollCaptureBtn.disabled = true;
+    faceEnrollHint.textContent = "Loading face recognition…";
+    const ready = await loadFaceApi();
+    if (!ready) {
+      faceEnrollHint.textContent = "Face recognition library unavailable (offline or blocked) — this student will use QR-only verification.";
+      faceEnrollCaptureBtn.disabled = false;
+      return;
+    }
+    faceEnrollHint.textContent = "Analyzing…";
+    const captured = await captureFaceDescriptor(faceEnrollVideo);
+    faceEnrollCaptureBtn.disabled = false;
+    if (!captured) {
+      faceEnrollHint.textContent = "No face detected — center the face in frame with good lighting and try again.";
+      return;
+    }
+    pendingFaceDescriptor = captured.descriptor;
+    pendingFacePhoto = snapshotToDataUrl(faceEnrollVideo);
+    faceEnrollHint.textContent = "";
+    stopFaceEnrollCamera();
+    renderFaceEnrollUI();
+  });
+  faceEnrollRemoveBtn.addEventListener("click", () => {
+    stopFaceEnrollCamera();
+    pendingFaceDescriptor = null;
+    pendingFacePhoto = null;
+    faceEnrollHint.textContent = "";
+    renderFaceEnrollUI();
+  });
+
+  let faceTouched = false;   // the face fields are only sent when the registrar actually enrolled or removed one
+  faceEnrollCaptureBtn.addEventListener("click", () => { faceTouched = true; });
+  faceEnrollRemoveBtn.addEventListener("click", () => { faceTouched = true; });
+
+  function resetFormChrome() {
+    editingId = null; faceTouched = false;
+    document.getElementById("formMode").textContent = "Issue new credential";
+    document.getElementById("submitLabel").textContent = "Issue credential";
+  }
+  function openAddForm() {
+    addForm.reset();
+    resetFormChrome();
+    resetFaceEnrollState();
+    document.getElementById("addError").textContent = "";
+    addForm.style.display = "block";
+    addForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  function openEditForm(s) {
+    editingId = s.id; faceTouched = false;
+    document.getElementById("formMode").textContent = `Editing ${s.name} (${s.id})`;
+    document.getElementById("submitLabel").textContent = "Save changes";
+    document.getElementById("addName").value = s.name;
+    document.getElementById("addSchoolId").value = s.schoolId;
+    document.getElementById("addSchool").value = s.school;
+    document.getElementById("addProgram").value = s.program;
+    document.getElementById("addLevel").value = s.level;
+    document.getElementById("addEmail").value = s.email;
+    document.getElementById("addPhone").value = s.phone === "—" ? "" : s.phone;
+    document.getElementById("addValidUntil").value = (s.validUntil === "Awaiting registrar" || s.validUntil === "Under review") ? "" : s.validUntil;
+    document.getElementById("addError").textContent = "";
+    stopFaceEnrollCamera();
+    pendingFaceDescriptor = null; pendingFacePhoto = null;   // the stored face is never sent back to the browser
+    faceEnrollHint.textContent = "";
+    renderFaceEnrollUI();
+    if (s.faceEnrolled) faceEnrollStatus.textContent = "A face is on file. Use Enroll face to replace it, or leave it unchanged.";
+    addForm.style.display = "block";
+    addForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  document.getElementById("addBtn").addEventListener("click", () => {
+    if (addForm.style.display !== "none") { addForm.style.display = "none"; stopFaceEnrollCamera(); return; }
+    openAddForm();
+  });
+  document.getElementById("cancelAdd").addEventListener("click", () => {
+    addForm.reset(); resetFormChrome(); resetFaceEnrollState();
+    document.getElementById("addError").textContent = "";
+    addForm.style.display = "none";
+  });
+  addForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById("addError");
+    errorEl.textContent = "";
+    const v = (id) => document.getElementById(id).value.trim();
+    const body = { name: v("addName"), schoolId: v("addSchoolId"), school: v("addSchool"), program: v("addProgram"), level: v("addLevel"), email: v("addEmail").toLowerCase() };
+    if (v("addPhone")) body.phone = v("addPhone");
+    if (v("addValidUntil")) body.validUntil = v("addValidUntil");
+    if (!editingId || faceTouched) { body.faceDescriptor = pendingFaceDescriptor || null; body.facePhoto = pendingFacePhoto || null; }
+    const btn = document.getElementById("submitLabel");
+    btn.disabled = true;
+    try {
+      if (editingId) await api(`/students/${encodeURIComponent(editingId)}`, { method: "PATCH", body });
+      else await api("/students", { method: "POST", body });   // issued by a registrar, so it counts as verified by this admin
+      addForm.reset(); resetFormChrome(); resetFaceEnrollState();
+      addForm.style.display = "none";
+      await load();
+    } catch (ex) { errorEl.textContent = errText(ex); }
+    finally { btn.disabled = false; }
+  });
+
+  await load();
+  await renderPass();
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

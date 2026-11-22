@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TransitPass · QR Code-Based Student Transportation Discount Verification and Management System</title>
+<meta name="description" content="TransitPass is a QR code-based student transportation discount verification and management system. Register, get your QR pass, scan it on board and enjoy your discount.">
+<meta name="theme-color" content="#082B57">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/landing.css">
+<script>document.documentElement.classList.add("js");</script>
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="lp">
+
+<!-- Icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-bus" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="15" rx="3"/><path d="M4 11h16M8 18v2.5M16 18v2.5"/><path d="M8.5 14.5h.01M15.5 14.5h.01" stroke-width="2.4"/><path d="M9 7h6"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5"/><path d="M22 9v5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M19 8v6M16 11h6"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 12h8"/></symbol>
+    <symbol id="i-driver" viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="3.8"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M9.5 15.5l2.5 2.5 2.5-2.5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0"/><circle cx="17" cy="9" r="2.8"/><path d="M17 14.5a5.5 5.5 0 0 1 5 5.5"/></symbol>
+    <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M14 21h3M21 17v4M17 17v.01"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-registry" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></symbol>
+    <symbol id="i-discount" viewBox="0 0 24 24"><path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+    <symbol id="i-idcard" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M5.5 16c.5-1.7 1.9-2.5 3.5-2.5s3 .8 3.5 2.5M14 10h4M14 14h4"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 21h18"/><rect x="5" y="12" width="3" height="7" rx=".6"/><rect x="10.5" y="6" width="3" height="13" rx=".6"/><rect x="16" y="9" width="3" height="10" rx=".6"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<!-- ============ Header ============ -->
+<header class="site-header" id="siteHeader">
+  <svg class="header-swoosh" viewBox="0 0 130 72" preserveAspectRatio="none" aria-hidden="true"><path d="M0 62C38 56 84 30 118 0h12C96 38 50 66 0 74z" fill="#F5B82E"/></svg>
+  <div class="wrap nav-bar">
+    <a class="brand-lockup" href="#home" aria-label="TransitPass, back to top">
+      <span class="brand-mark"><svg class="ico" aria-hidden="true"><use href="#i-bus"/></svg></span>
+      <span class="brand-text">
+        <span class="brand-name">Transit<b>Pass</b></span>
+        <span class="brand-sub">Student Transportation System</span>
+      </span>
+    </a>
+
+    <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="siteNav" aria-label="Toggle navigation menu">
+      <svg class="ico open" aria-hidden="true"><use href="#i-menu"/></svg>
+      <svg class="ico close" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
+
+    <nav class="site-nav" id="siteNav" aria-label="Main">
+      <ul class="nav-links">
+        <li><a href="#home" class="is-active">Home</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#contact">Contact</a></li>
+        <li><a href="landing.html#download">Download</a></li>
+      </ul>
+      <div class="login" id="login">
+        <button class="login-btn" id="loginBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="loginMenu">
+          <svg class="ico" aria-hidden="true"><use href="#i-user"/></svg>
+          Login
+          <svg class="ico caret" aria-hidden="true"><use href="#i-down"/></svg>
+        </button>
+        <div class="login-menu" id="loginMenu">
+          <a href="student-login.html">
+            <span class="tile"><svg class="ico" aria-hidden="true"><use href="#i-cap"/></svg></span>
+            <span><strong>Student Login</strong><small>View your digital QR pass</small></span>
+          </a>
+        </div>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============ Hero ============ -->
+  <section class="hero" id="home" aria-labelledby="heroTitle">
+    <div class="hero__photo" role="img" aria-label="Monument and building at the Talisay City College campus"></div>
+    <div class="hero__shade" aria-hidden="true"></div>
+    <svg class="hero__arc" viewBox="0 0 640 170" fill="none" aria-hidden="true">
+      <path id="routePath" d="M0 168C190 160 450 100 640 0" stroke="#F5B82E" stroke-width="7"/>
+      <path d="M60 170C240 166 470 112 640 36" stroke="#F5B82E" stroke-opacity=".45" stroke-width="3"/>
+      <g class="route-dot" visibility="hidden">
+        <set attributeName="visibility" to="visible" begin="1.8s"/>
+        <circle r="12" fill="#F5B82E" opacity=".3"><animate attributeName="r" values="8;24;8" dur="2s" repeatCount="indefinite"/><animate attributeName="opacity" values=".45;0;.45" dur="2s" repeatCount="indefinite"/></circle>
+        <circle r="8" fill="#F5B82E" stroke="#fff" stroke-width="3"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.08;.9;1" dur="9s" begin="1.8s" repeatCount="indefinite"/>
+        <animateMotion dur="9s" begin="1.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines=".45 .05 .55 .95"><mpath href="#routePath"/></animateMotion>
+      </g>
+    </svg>
+    <div class="wrap hero__inner">
+      <div class="hero__copy">
+        <p class="hero__system">QR Code-Based Student Transportation Discount Verification and Management System</p>
+        <h1 id="heroTitle">
+          <span class="line">Your Student Pass.</span>
+          <span class="line">Your Ride.</span>
+          <span class="line line--gold">Your Discount.</span>
+        </h1>
+        <div class="hero__rule" aria-hidden="true"></div>
+        <p class="hero__lead">A smarter and more convenient way to verify student transportation discounts using QR code technology.</p>
+        <div class="hero__actions">
+          <a class="btn btn--gold" href="driver-dashboard.html"><svg class="ico" aria-hidden="true"><use href="#i-scan"/></svg>Scan QR Code</a>
+          <a class="btn btn--ghost" href="#how-it-works">Explore the System<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Quick access portals ============ -->
+  <section class="portals" aria-labelledby="portalsTitle">
+    <div class="wrap">
+      <h2 class="sr-only" id="portalsTitle">Quick access</h2>
+      <div class="portal-grid">
+        <a class="portal" href="student-login.html">
+          <span class="portal__icon"><svg class="ico" aria-hidden="true"><use href="#i-cap"/></svg></span>
+          <span>
+            <h3>Student Portal</h3>
+            <p>Access your student account and view your digital QR pass.</p>
+          </span>
+        </a>
+        <a class="portal" href="student-register.html">
+          <span class="portal__icon"><svg class="ico" aria-hidden="true"><use href="#i-user-plus"/></svg></span>
+          <span>
+            <h3>Student Registration</h3>
+            <p>Create a student account, register and obtain your QR pass.</p>
+          </span>
+        </a>
+        <a class="portal" href="driver-dashboard.html">
+          <span class="portal__icon"><svg class="ico" aria-hidden="true"><use href="#i-scan"/></svg></span>
+          <span>
+            <h3>QR Verification</h3>
+            <p>Scan and verify student transportation discounts.</p>
+          </span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ How it works ============ -->
+  <section class="section" id="how-it-works" aria-labelledby="howTitle">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <h2 class="section__title" id="howTitle">How It Works</h2>
+        <p class="section__sub">Get your transportation discount in just a few simple steps.</p>
+      </div>
+      <ol class="steps" data-reveal>
+        <li class="step">
+          <span class="step__num" aria-hidden="true">1</span>
+          <svg class="ico step__icon" aria-hidden="true"><use href="#i-user-plus"/></svg>
+          <h3><span class="sr-only">Step 1: </span>Register</h3>
+          <p>Create your student account.</p>
+          <span class="step__arrow" aria-hidden="true"><svg class="ico"><use href="#i-chevron"/></svg></span>
+        </li>
+        <li class="step">
+          <span class="step__num" aria-hidden="true">2</span>
+          <svg class="ico step__icon" aria-hidden="true"><use href="#i-qr"/></svg>
+          <h3><span class="sr-only">Step 2: </span>Get QR Pass</h3>
+          <p>Generate your digital student QR pass.</p>
+          <span class="step__arrow" aria-hidden="true"><svg class="ico"><use href="#i-chevron"/></svg></span>
+        </li>
+        <li class="step">
+          <span class="step__num" aria-hidden="true">3</span>
+          <svg class="ico step__icon" aria-hidden="true"><use href="#i-scan"/></svg>
+          <h3><span class="sr-only">Step 3: </span>Scan</h3>
+          <p>Present your QR code for verification.</p>
+          <span class="step__arrow" aria-hidden="true"><svg class="ico"><use href="#i-chevron"/></svg></span>
+        </li>
+        <li class="step">
+          <span class="step__num" aria-hidden="true">4</span>
+          <svg class="ico step__icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <h3><span class="sr-only">Step 4: </span>Enjoy Discount</h3>
+          <p>Receive your eligible transportation discount.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ System features ============ -->
+  <section class="section section--mist" id="features" aria-labelledby="featTitle">
+    <div class="wrap">
+      <div class="section__head" data-reveal>
+        <h2 class="section__title" id="featTitle">System Features</h2>
+        <p class="section__sub">A complete transportation management solution for students, drivers and administrators.</p>
+      </div>
+      <div class="feature-grid" data-reveal>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-users"/></svg></span>
+          <h3>Student Information Management</h3>
+          <p>Keep each student's school details, status and pass validity in one registry.</p>
+        </article>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-qr"/></svg></span>
+          <h3>QR Code Generation</h3>
+          <p>Every approved student gets a scannable digital QR pass they can download.</p>
+        </article>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg></span>
+          <h3>Secure QR Verification</h3>
+          <p>Each scan is checked against the student's current status, with an optional face check at boarding.</p>
+        </article>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-registry"/></svg></span>
+          <h3>Student Registry Management</h3>
+          <p>Add, approve, flag, revoke or reinstate student passes from one place.</p>
+        </article>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-discount"/></svg></span>
+          <h3>Transportation Discount Verification</h3>
+          <p>Eligible students get the discounted fare applied automatically when their pass is scanned.</p>
+        </article>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-history"/></svg></span>
+          <h3>Ride and Scan History</h3>
+          <p>Students review their own rides, and administrators see every scan in order.</p>
+        </article>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-idcard"/></svg></span>
+          <h3>Driver Management</h3>
+          <p>Drivers sign in to a dedicated area and manage their own account details.</p>
+        </article>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg></span>
+          <h3>Reports and Monitoring</h3>
+          <p>Follow weekly verification volume and the operator subsidy ledger at a glance.</p>
+        </article>
+        <article class="feature">
+          <span class="feature__icon"><svg class="ico" aria-hidden="true"><use href="#i-bell"/></svg></span>
+          <h3>Notifications and Announcements</h3>
+          <p>Students are notified when their pass is approved, updated, flagged or revoked.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ About ============ -->
+  <section class="section" id="about" aria-labelledby="aboutTitle">
+    <div class="wrap about">
+      <div data-reveal>
+        <figure class="about__media">
+          <img src="img/campus-hero.jpg" alt="Monument and building at the Talisay City College campus" width="1808" height="712" loading="lazy">
+        </figure>
+      </div>
+      <div data-reveal>
+        <h2 class="about__title" id="aboutTitle">One pass for every student ride</h2>
+        <p class="about__text">TransitPass replaces paper IDs and manual checks with a single QR pass. Students carry one digital pass, drivers confirm eligibility with a scan, and administrators keep an accurate registry and a complete record of every verification.</p>
+        <div class="roles">
+          <div class="role">
+            <span class="role__icon"><svg class="ico" aria-hidden="true"><use href="#i-cap"/></svg></span>
+            <div>
+              <h3>Students</h3>
+              <p>Register once, keep the QR pass on a phone and check ride history any time.</p>
+            </div>
+          </div>
+          <div class="role">
+            <span class="role__icon"><svg class="ico" aria-hidden="true"><use href="#i-bus"/></svg></span>
+            <div>
+              <h3>Drivers</h3>
+              <p>Scan a pass at boarding and see right away whether the discount applies.</p>
+            </div>
+          </div>
+          <div class="role">
+            <span class="role__icon"><svg class="ico" aria-hidden="true"><use href="#i-registry"/></svg></span>
+            <div>
+              <h3>Administrators</h3>
+              <p>Approve students, manage passes and review scan history and reports.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Call to action ============ -->
+  <section class="cta" aria-labelledby="ctaTitle">
+    <svg class="cta__arc cta__arc--a" viewBox="0 0 520 140" fill="none" aria-hidden="true"><path d="M0 138C150 132 360 84 520 0" stroke="#F5B82E" stroke-width="6"/><path d="M0 108C130 106 300 70 430 8" stroke="#F5B82E" stroke-opacity=".4" stroke-width="3"/></svg>
+    <svg class="cta__arc cta__arc--b" viewBox="0 0 420 120" fill="none" aria-hidden="true"><path d="M420 2C300 8 120 52 0 120" stroke="#F5B82E" stroke-width="6"/><path d="M420 30C320 36 170 70 70 120" stroke="#F5B82E" stroke-opacity=".4" stroke-width="3"/></svg>
+    <div class="wrap" data-reveal>
+      <h2 id="ctaTitle">Making Student Transportation Smarter and Easier.</h2>
+      <p>Experience a more convenient and reliable way to verify student transportation discounts.</p>
+      <a class="btn btn--gold" href="student-register.html">Get Started<svg class="ico" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ Footer ============ -->
+<footer class="site-footer" id="contact">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div>
+        <a class="brand-lockup" href="#home" aria-label="TransitPass, back to top">
+          <span class="brand-mark"><svg class="ico" aria-hidden="true"><use href="#i-bus"/></svg></span>
+          <span class="brand-text">
+            <span class="brand-name">Transit<b>Pass</b></span>
+            <span class="brand-sub">Student Transportation System</span>
+          </span>
+        </a>
+        <p class="footer-about">A QR code-based system for verifying and managing student transportation discounts.</p>
+      </div>
+
+      <nav aria-label="Footer">
+        <h2 class="footer-title">Quick Links</h2>
+        <ul class="footer-links">
+          <li><a href="#home">Home</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </nav>
+
+      <nav aria-label="Portals">
+        <h2 class="footer-title">Portals</h2>
+        <ul class="footer-links">
+          <li><a href="student-login.html">Student Portal</a></li>
+        </ul>
+      </nav>
+
+      <div>
+        <h2 class="footer-title">Contact</h2>
+        <ul class="contact-list">
+          <li><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg><span>Talisay City College<br>Talisay City, Cebu, Philippines</span></li>
+          <!-- Add the official email and phone here when you have them (left out on purpose, not invented):
+          <li><svg class="ico" aria-hidden="true"><use href="#i-mail"/></svg><a href="mailto:EMAIL">EMAIL</a></li>
+          <li><svg class="ico" aria-hidden="true"><use href="#i-phone"/></svg><a href="tel:PHONE">PHONE</a></li>
+          -->
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; 2026 TransitPass. All rights reserved.</p>
+      <button id="resetDemo" class="reset-demo" type="button">Reset demo data on this device</button>
+    </div>
+  </div>
+</footer>
+
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/landing.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

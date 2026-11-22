@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<template id="tpl">
+
+  <div id="banner"></div>
+  <section class="sp-card who-card" id="who-card"><div class="sk" style="width:100%"></div></section>
+  <section class="sp-grid kpi" id="kpis"></section>
+  <section class="sp-grid two">
+    <article class="sp-card"><div class="hd"><div><h2>Recent transactions</h2><p class="sub" style="margin:0">Your last rides</p></div><a href="student-transactions.html">View all</a></div><div id="recent"></div></article>
+    <article class="sp-card"><div class="hd"><div><h2>Notifications</h2><p class="sub" style="margin:0" id="unreadText"></p></div><a href="student-notifications.html">View all</a></div><div id="notes"></div></article>
+  </section>
+
+</template>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+
+Student.boot({ nav: "dashboard", eyebrow: "Student portal", title: "Dashboard", sub: "Your pass, discount and rides at a glance." }, async () => {
+  const { S, peso, badge, regBadge, eligBadge, qrBadge, avatar, empty } = Student;
+  const d = await S("/me/dashboard");
+  const st = d.student, el = d.eligibility, q = d.qr;
+  Student.paintWho(st); Student.setBadge(d.unreadNotifications);
+
+  const reg = st.registration;
+  let banner = "";
+  if (reg.status === "pending") banner = `<div class="notice info"><div><b>Waiting for approval</b>An administrator is checking that you are an enrolled student. Your QR code and discount unlock once you are approved.</div></div>`;
+  else if (reg.status === "rejected") banner = `<div class="notice bad"><div><b>Registration not approved</b>${esc(reg.rejectionReason || "Please visit your school registrar.")} You can replace your documents in <a href="student-profile.html"><u>My Profile</u></a>.</div></div>`;
+  else if (el.status === "expired") banner = `<div class="notice warn"><div><b>Your discount has expired</b>Request a renewal in <a href="student-eligibility.html"><u>Discount Eligibility</u></a> to ride at the student fare again.</div></div>`;
+  else if (el.status === "eligible" && el.daysLeft !== null && el.daysLeft <= 30) banner = `<div class="notice warn"><div><b>Your discount expires in ${el.daysLeft} day${el.daysLeft === 1 ? "" : "s"}</b>Valid until ${esc(el.validUntil)}. You can request a renewal in <a href="student-eligibility.html"><u>Discount Eligibility</u></a>.</div></div>`;
+  else if (el.status === "suspended") banner = `<div class="notice warn"><div><b>Pass under review</b>${esc(el.note)}</div></div>`;
+  document.getElementById("banner").innerHTML = banner;
+
+  const verified = reg.status === "approved" ? "Verified" + (reg.decidedAt ? " on " + fmtDate(reg.decidedAt) : "") : reg.status === "rejected" ? "Not verified" : "Awaiting review";
+  document.getElementById("who-card").innerHTML = `${avatar(st)}<div style="min-width:0"><h2>${esc(st.name)}</h2>
+    <p class="meta mono">${esc(st.schoolId)} · ${esc(st.course)} · ${esc(st.yearLevel)}</p>
+    <div class="badges">${regBadge(reg)}<span class="muted" style="font-size:.8rem;align-self:center">${esc(verified)}</span></div></div>`;
+
+  document.getElementById("kpis").innerHTML = `
+    <article class="kpi-card blue"><span class="l">QR code</span><span class="v">${esc(q.label)}</span><span class="n">${q.expiresAt ? (q.status === "active" ? "Expires " : "Expired ") + esc(fmtDate(q.expiresAt)) : "Open My QR Code to set it up"}</span></article>
+    <article class="kpi-card ${el.status === "eligible" ? "green" : el.status === "pending" ? "amber" : "slate"}"><span class="l">Discount</span><span class="v">${esc(el.label)}${el.percent ? " · " + el.percent + "%" : ""}</span><span class="n">${el.validUntil && el.status !== "pending" ? "Valid until " + esc(el.validUntil) : esc(el.note)}</span></article>
+    <article class="kpi-card purple"><span class="l">Total transactions</span><span class="v">${d.totals.transactions}</span><span class="n">Rides recorded</span></article>
+    <article class="kpi-card amber"><span class="l">Discounts received</span><span class="v">${peso(d.totals.totalDiscount)}</span><span class="n">Paid ${peso(d.totals.totalPaid)} in total</span></article>`;
+
+  document.getElementById("recent").innerHTML = d.recentTransactions.length ? d.recentTransactions.map((t) => `
+    <div class="list-row"><div><p class="t">${esc(t.service)}</p><p class="s">${esc(t.reference)} · ${esc(t.date)} ${esc(t.time)}<br>Driver: ${esc(t.driver)}</p></div>
+    <div class="r"><span class="amt">${peso(t.finalFare)}</span><p class="s">${t.discountAmount ? "saved " + peso(t.discountAmount) : "full fare"}</p></div></div>`).join("")
+    : empty("No rides yet", "Your transactions appear here after the driver scans your QR code.");
+
+  document.getElementById("unreadText").textContent = d.unreadNotifications ? d.unreadNotifications + " unread" : "All caught up";
+  document.getElementById("notes").innerHTML = d.notifications.length ? d.notifications.map((n) => `
+    <a class="list-row" href="student-notifications.html" style="text-decoration:none"><div><p class="t">${n.read ? "" : '<span style="color:#075BDB">● </span>'}${esc(n.title)}</p><p class="s">${esc(n.date)} ${esc(n.time)}</p></div></a>`).join("")
+    : empty("No notifications", "Updates about your account will show up here.");
+});
+
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

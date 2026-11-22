@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trip Management · TransitPass</title>
+<meta name="description" content="Create trips, assign a driver, vehicle and route without conflicts, follow each trip from start to finish, and monitor daily and monthly activity.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Trip Management</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Create trips, assign a driver, vehicle and route without conflicts, follow each trip from start to finish, and monitor daily and monthly activity.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div id="tabs"></div>
+        <section id="pTrips">
+          <div class="am-bar">
+            <div class="grow"><input id="q" placeholder="Search route, vehicle, plate or driver" maxlength="60" aria-label="Search trips"></div>
+            <div style="width:150px"><select id="st" aria-label="Status"><option value="all">All statuses</option><option value="scheduled">Scheduled</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>
+            <div><input id="from" type="date" aria-label="From date"></div><div><input id="to" type="date" aria-label="To date"></div>
+            <button class="primary" id="addBtn">Create trip</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>#</th><th>Route</th><th>Vehicle</th><th>Driver</th><th>Planned</th><th>Actual</th><th>Status</th><th>Passengers</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table></div>
+          <div class="am-pager" id="pager"></div>
+        </section>
+        <section id="pMon" hidden>
+          <div class="am-bar">
+            <div style="width:150px"><select id="per" aria-label="Period"><option value="daily">Daily</option><option value="monthly">Monthly</option></select></div>
+            <div><input id="dateD" type="date" aria-label="Date"></div><div><input id="dateM" type="month" aria-label="Month" hidden></div>
+          </div>
+          <div class="am-stats" id="monStats"></div>
+          <div class="table-wrap" style="margin-top:1rem"><table><thead id="monHead"></thead><tbody id="monRows"></tbody></table></div>
+        </section>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  let items = [];
+  const t = (iso) => (iso ? AM.dt(iso) : "—");
+  const lists = async () => { const [r, v, d] = await Promise.all([api("/admin/routes?status=active&limit=200"), api("/admin/vehicles?status=active&limit=200"), AM.personOptions("driver")]); return { r: r.items, v: v.items, d }; };
+  async function tripForm(trip) {
+    const L = await lists();
+    if (!L.r.length || !L.v.length || !L.d.length) return showToast("You need at least one active route, vehicle and driver first.");
+    await AM.form({ title: trip ? `Edit trip #${trip.id}` : "Create trip", wide: true, submit: trip ? "Save" : "Create trip",
+      intro: "The system refuses a trip if the driver or vehicle already has another trip at an overlapping time.",
+      initial: trip ? { routeId: trip.routeId, vehicleId: trip.vehicleId, driverId: trip.driverId, startTime: AM.toLocalInput(trip.startTime), endTime: AM.toLocalInput(trip.endTime), notes: trip.notes || "" } : {},
+      fields: [{ name: "routeId", label: "Route", type: "select", required: true, options: L.r.map((x) => [x.id, x.name]) }, { name: "vehicleId", label: "Vehicle", type: "select", required: true, options: L.v.map((x) => [x.id, x.name + " · " + x.plateNumber]) },
+        { name: "driverId", label: "Driver", type: "select", required: true, options: L.d.map((x) => [x.id, x.name]) }, { name: "startTime", label: "Start time", type: "datetime-local", required: true }, { name: "endTime", label: "End time", type: "datetime-local", required: true },
+        { name: "notes", label: "Notes", type: "textarea", maxlength: 255 }],
+      onSubmit: async (v) => { const body = { routeId: +v.routeId, vehicleId: +v.vehicleId, driverId: +v.driverId, startTime: AM.fromLocalInput(v.startTime), endTime: AM.fromLocalInput(v.endTime), notes: v.notes };
+        await api(trip ? `/admin/trips/${trip.id}` : "/admin/trips", { method: trip ? "PATCH" : "POST", body }); showToast(trip ? "Trip updated." : "Trip created."); } });
+    list.load();
+  }
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/trips", empty: "No trips match. Use “Create trip”.",
+    params: () => ({ q: $("q").value.trim(), status: $("st").value, from: $("from").value, to: $("to").value }), onData: (d) => { items = d.items; },
+    row: (x) => `<tr><td class="mono">#${x.id}</td><td><strong>${esc(x.route)}</strong><br><span class="muted" style="font-size:.74rem">${esc(x.origin)} → ${esc(x.destination)}</span></td><td>${esc(x.vehicle)}<br><span class="muted mono" style="font-size:.74rem">${esc(x.plateNumber)}</span></td><td>${esc(x.driver)}</td>
+      <td style="font-size:.78rem">${esc(t(x.startTime))}<br><span class="muted">to ${esc(t(x.endTime))}</span></td><td style="font-size:.78rem">${esc(t(x.actualStart))}${x.actualEnd ? `<br><span class="muted">to ${esc(t(x.actualEnd))}</span>` : ""}</td>
+      <td>${AM.badge(x.status)}${x.cancelReason ? `<br><span class="muted" style="font-size:.74rem">${esc(x.cancelReason)}</span>` : ""}</td><td class="mono">${x.status === "completed" ? x.passengerCount : x.status === "ongoing" ? x.scannedPassengers + " so far" : "—"}</td>
+      <td><div class="am-actions">${x.status === "scheduled" ? `<button class="primary" data-a="start" data-id="${x.id}">Start</button><button data-a="edit" data-id="${x.id}">Edit</button>` : ""}${x.status === "ongoing" ? `<button class="primary" data-a="complete" data-id="${x.id}">Complete</button>` : ""}${["scheduled", "ongoing"].includes(x.status) ? `<button data-a="cancel" data-id="${x.id}">Cancel</button>` : ""}</div></td></tr>`
+  });
+  $("addBtn").onclick = () => tripForm();
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const x = items.find((y) => String(y.id) === b.dataset.id), a = b.dataset.a;
+    if (a === "edit") return tripForm(x);
+    if (a === "start") { await AM.act(b, () => api(`/admin/trips/${x.id}/start`, { method: "POST" }), "Trip started."); return list.load(); }
+    if (a === "complete") { await AM.form({ title: `Complete trip #${x.id}`, intro: `Rides verified by the driver during this trip: <strong>${x.scannedPassengers}</strong>. Leave the passenger count empty to use that number.`, submit: "Complete trip",
+      fields: [{ name: "passengerCount", label: "Passenger count (optional)", type: "number", min: 0, max: 100000 }], onSubmit: async (v) => { await api(`/admin/trips/${x.id}/complete`, { method: "POST", body: v.passengerCount === "" ? {} : { passengerCount: Number(v.passengerCount) } }); showToast("Trip completed."); } }); return list.load(); }
+    if (a === "cancel") { await AM.confirm({ title: `Cancel trip #${x.id}`, confirm: "Cancel trip", danger: true, reason: { label: "Cancellation reason", min: 3 }, run: (v) => api(`/admin/trips/${x.id}/cancel`, { method: "POST", body: { reason: v.reason } }) }); list.load(); }
+  });
+  $("q").addEventListener("input", debounce(() => list.load(true))); ["st", "from", "to"].forEach((id) => $(id).addEventListener("change", () => list.load(true)));
+  /* monitoring */
+  $("dateD").value = AM.today(); $("dateM").value = AM.today().slice(0, 7);
+  async function monitor() {
+    const per = $("per").value; $("dateD").hidden = per !== "daily"; $("dateM").hidden = per !== "monthly";
+    AM.state($("monRows"), "loading");
+    try {
+      const d = await api(`/admin/trips/monitor?period=${per}&date=${per === "daily" ? $("dateD").value : $("dateM").value}`);
+      const T = d.totals;
+      AM.stats($("monStats"), [{ label: "Trips", value: T.trips }, { label: "Completed", value: T.completed }, { label: "Ongoing", value: T.ongoing }, { label: "Scheduled", value: T.scheduled }, { label: "Cancelled", value: T.cancelled }, { label: "Passengers", value: T.passengers }]);
+      if (per === "monthly") {
+        $("monHead").innerHTML = "<tr><th>Date</th><th>Trips</th><th>Completed</th><th>Ongoing</th><th>Scheduled</th><th>Cancelled</th><th>Passengers</th></tr>";
+        $("monRows").innerHTML = d.rows.map((r) => `<tr><td class="mono">${esc(r.date)}</td><td class="mono">${r.trips}</td><td class="mono">${r.completed}</td><td class="mono">${r.ongoing}</td><td class="mono">${r.scheduled}</td><td class="mono">${r.cancelled}</td><td class="mono">${r.passengers}</td></tr>`).join("");
+      } else {
+        $("monHead").innerHTML = "<tr><th>Route</th><th>Trips</th><th>Completed</th><th>Ongoing</th><th>Scheduled</th><th>Cancelled</th><th>Passengers</th></tr>";
+        if (!d.byRoute.length) AM.state($("monRows"), "empty", "No trips on this day."); else $("monRows").innerHTML = d.byRoute.map((r) => `<tr><td><strong>${esc(r.route)}</strong></td><td class="mono">${r.trips}</td><td class="mono">${r.completed}</td><td class="mono">${r.ongoing}</td><td class="mono">${r.scheduled}</td><td class="mono">${r.cancelled}</td><td class="mono">${r.passengers}</td></tr>`).join("");
+      }
+    } catch (e) { AM.state($("monRows"), "error", errText(e)); }
+  }
+  ["per", "dateD", "dateM"].forEach((id) => $(id).addEventListener("change", monitor));
+  AM.tabs($("tabs"), [["trips", "Trips & history"], ["mon", "Daily / monthly monitoring"]], (id) => { $("pTrips").hidden = id !== "trips"; $("pMon").hidden = id !== "mon"; if (id === "trips") list.load(true); else monitor(); });
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Applications · TransitPass</title>
+<meta name="description" content="Monitor where every student application stands, see the full review history, and jump to the Verifications page to approve or reject.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Student Applications</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Monitor where every student application stands, see the full review history, and jump to the Verifications page to approve or reject.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-stats" id="stats"></div>
+      <article class="card">
+        <div id="tabs"></div>
+        <section id="pMon">
+          <div class="am-bar">
+            <div class="grow"><input id="q" placeholder="Search name, School ID or program" maxlength="60" aria-label="Search applications"></div>
+            <div style="width:170px"><select id="status" aria-label="Filter by status"><option value="pending">Pending review</option><option value="verified">Approved</option><option value="rejected">Rejected</option><option value="all">All applications</option></select></div>
+            <a class="btn" href="admin-verifications.html" style="text-decoration:none"><button type="button" class="primary">Open Verifications</button></a>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Student</th><th>Status</th><th>Documents</th><th>Corrections</th><th>Waiting</th><th>Last decision</th><th></th></tr></thead>
+            <tbody id="monRows"></tbody>
+          </table></div>
+          <div class="am-pager" id="monPager"></div>
+        </section>
+        <section id="pHist" hidden>
+          <div class="am-bar">
+            <div class="grow"><input id="hq" placeholder="Search student, administrator or reason" maxlength="60" aria-label="Search history"></div>
+            <div style="width:220px"><select id="hev" aria-label="Filter by event"><option value="all">All events</option><option value="application_approved">Application approved</option><option value="application_rejected">Application rejected</option><option value="application_reopened">Application reopened</option><option value="document_verified">Document verified</option><option value="document_rejected">Document rejected</option><option value="correction_approved">Correction approved</option><option value="correction_rejected">Correction rejected</option><option value="renewal_approved">Renewal approved</option><option value="renewal_rejected">Renewal rejected</option><option value="qr_replacement_approved">QR replacement approved</option><option value="qr_replacement_rejected">QR replacement rejected</option></select></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>When</th><th>Student</th><th>Event</th><th>Subject</th><th>Reason / note</th><th>Administrator</th></tr></thead>
+            <tbody id="histRows"></tbody>
+          </table></div>
+          <div class="am-pager" id="histPager"></div>
+        </section>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  const EV = { application_approved: "approved", application_rejected: "rejected", application_reopened: "pending", document_verified: "verified", document_rejected: "rejected", correction_approved: "approved", correction_rejected: "rejected" };
+  const docCell = (d) => ["id", "enrollment"].map((k) => `<span class="muted" style="font-size:.74rem">${k === "id" ? "ID" : "COR"}:</span> ${AM.badge(d[k] === "none" ? "missing" : d[k])}`).join("<br>");
+  const loadStats = async () => {
+    const s = await api("/admin/applications/summary");
+    AM.stats($("stats"), [
+      { label: "Pending review", value: s.pending, note: s.oldestPendingAt ? "oldest since " + fmtDate(s.oldestPendingAt) : "none waiting" },
+      { label: "Approved", value: s.verified }, { label: "Rejected", value: s.rejected },
+      { label: "Documents to review", value: s.awaitingDocumentReview },       { label: "Correction requests", value: s.pendingCorrections, note: "waiting for a decision" },
+      { label: "Renewal requests", value: s.pendingRenewals, note: "waiting for a decision" },
+      { label: "QR replacement requests", value: s.pendingQrReplacements, note: "waiting for a decision" },
+      { label: "Decisions, last 7 days", value: s.decisionsLast7Days }]);
+  };
+  const mon = AM.list({
+    tbody: $("monRows"), pagerEl: $("monPager"), path: "/admin/applications", empty: "No applications match this filter.",
+    params: () => ({ q: $("q").value.trim(), status: $("status").value }),
+    row: (s) => `<tr><td><strong>${esc(s.name)}</strong><br><span class="muted mono" style="font-size:.74rem">${esc(s.schoolId)} · ${esc(s.program || "")}</span></td>
+      <td>${AM.badge(s.verification ? s.verification.status : "unknown")}${s.verification && s.verification.rejectionReason ? `<br><span class="muted" style="font-size:.74rem">${esc(s.verification.rejectionReason)}</span>` : ""}</td>
+      <td>${s.documents ? docCell(s.documents) : "—"}</td>
+      <td>${s.pendingCorrections ? AM.badge("pending", s.pendingCorrections + " pending") : '<span class="muted">none</span>'}</td>
+      <td class="mono">${s.waitingDays === null ? "—" : s.waitingDays + " d"}</td>
+      <td style="font-size:.8rem">${s.lastDecision ? `${esc(AM.label(s.lastDecision.event))}<br><span class="muted">${esc(s.lastDecision.by)} · ${esc(fmtDate(s.lastDecision.at))}</span>` : '<span class="muted">—</span>'}</td>
+      <td><div class="am-actions"><button data-h="${esc(s.id)}" data-n="${esc(s.name)}">History</button><a href="admin-verifications.html?q=${encodeURIComponent(s.schoolId)}"><button type="button" class="primary">Review</button></a></div></td></tr>`
+  });
+  const hist = AM.list({
+    tbody: $("histRows"), pagerEl: $("histPager"), path: "/admin/applications/history", empty: "No review decisions have been recorded yet.",
+    params: () => ({ q: $("hq").value.trim(), event: $("hev").value }),
+    row: (h) => `<tr><td class="mono" style="font-size:.78rem">${esc(AM.dt(h.at))}</td><td><strong>${esc(h.student)}</strong><br><span class="muted mono" style="font-size:.74rem">${esc(h.schoolId)}</span></td>
+      <td>${AM.badge(EV[h.event], h.label)}</td><td>${esc(h.subject || "—")}</td><td>${esc(h.reason || "—")}</td><td>${esc(h.admin)}</td></tr>`
+  });
+  $("monRows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-h]"); if (!b) return;
+    const p = AM.panel("Review history · " + b.dataset.n); AM.state(p.body, "loading");
+    try {
+      const d = await api(`/admin/applications/history?studentId=${encodeURIComponent(b.dataset.h)}&limit=100`);
+      p.body.innerHTML = d.items.length ? `<ul class="am-tl">${d.items.map((h) => `<li><strong>${esc(h.label)}</strong>${h.subject ? " · " + esc(h.subject) : ""}<br><span class="muted">${esc(AM.dt(h.at))} · ${esc(h.admin)}</span>${h.reason ? `<br>${esc(h.reason)}` : ""}</li>`).join("")}</ul>` : '<div class="am-state">No decisions recorded for this student yet.</div>';
+    } catch (x) { AM.state(p.body, "error", errText(x)); }
+  });
+  $("q").addEventListener("input", debounce(() => mon.load(true))); $("status").addEventListener("change", () => mon.load(true));
+  $("hq").addEventListener("input", debounce(() => hist.load(true))); $("hev").addEventListener("change", () => hist.load(true));
+  AM.tabs($("tabs"), [["mon", "Status monitoring"], ["hist", "Review history"]], (id) => { $("pMon").hidden = id !== "mon"; $("pHist").hidden = id !== "hist"; (id === "mon" ? mon : hist).load(true); });
+  loadStats().catch((e) => showToast(errText(e)));
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

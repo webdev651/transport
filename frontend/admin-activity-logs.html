@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activity Logs · TransitPass</title>
+<meta name="description" content="A read-only record of administrator actions, sign-ins, student, driver, QR, fare, transaction, refund and profile activity. Search, filter, open the details, export to CSV or print.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+<style>
+.lg-bar label{display:block;font-size:.7rem;margin-bottom:.15rem}
+#reportArea{display:none}
+@page{size:A4 landscape;margin:12mm}
+@media print{
+  body.print-report .shell,body.print-report .toast,body.print-report dialog{display:none!important}
+  body.print-report #reportArea{display:block;color:#000;background:#fff;font-family:"DM Sans",Arial,sans-serif;font-size:9pt}
+  body.print-report{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+#reportArea h1{font-size:15pt;margin:0 0 .2rem}
+#reportArea p{margin:.15rem 0;font-size:9pt}
+#reportArea table{width:100%;min-width:0;border-collapse:collapse;margin:.6rem 0;font-size:8pt}
+#reportArea th,#reportArea td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}
+#reportArea th{background:#e8edf5}
+#reportArea tr{break-inside:avoid}
+#reportArea thead{display:table-header-group}
+</style>
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Activity Logs</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:46rem;font-size:.875rem">A read-only record of administrator actions, sign-ins, student, driver, QR, fare, transaction, refund and profile activity. Search, filter, open the details, export to CSV or print.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-note"><strong>Read only.</strong> Activity logs record what happened and cannot be edited or deleted from this page. Only the administrator can open them.</div>
+      <section class="am-stats" id="stats"></section>
+      <article class="card">
+        <div class="am-bar lg-bar">
+          <div class="grow"><label for="q">Search</label><input id="q" placeholder="Description, user, action, IP address or record ID" maxlength="60" aria-label="Search activity logs"></div>
+          <div style="width:190px"><label for="type">Activity type</label><select id="type"><option value="all">All types</option></select></div>
+          <div style="width:140px"><label for="status">Status</label><select id="status"><option value="all">All statuses</option><option value="success">Success</option><option value="failed">Failed</option></select></div>
+          <div style="width:150px"><label for="from">From</label><input id="from" type="date"></div>
+          <div style="width:150px"><label for="to">To</label><input id="to" type="date"></div>
+          <div style="align-self:flex-end" class="am-actions"><button type="button" id="reset">Reset</button><button type="button" id="csv">Export CSV</button><button type="button" class="primary" id="print">Print</button></div>
+        </div>
+        <p class="err-text" id="err" role="alert"></p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Description</th><th>User</th><th>IP address</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="row" style="justify-content:space-between;margin-top:.75rem" id="pager"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<div id="reportArea"></div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+  const filters = () => ({ q: $("q").value.trim(), type: $("type").value, status: $("status").value, from: $("from").value, to: $("to").value });
+  const query = () => AM.q(filters());
+  const badgeOf = (r) => AM.badge(r.status === "success" ? "active" : "rejected", r.statusLabel);
+
+  try { const m = await api("/admin/activity-logs/meta"); $("type").insertAdjacentHTML("beforeend", m.types.map((t) => `<option value="${esc(t.value)}">${esc(t.label)}</option>`).join("")); } catch (e) {}
+  const p = new URLSearchParams(location.search);               // links such as ?type=account from other pages
+  if (p.get("type") && [...$("type").options].some((o) => o.value === p.get("type"))) $("type").value = p.get("type");
+
+  let items = [];
+  async function stats() {
+    try {
+      const s = await api("/admin/activity-logs/summary?" + query());
+      AM.stats($("stats"), [{ label: "Activities", value: s.total, note: "matching the filters" }, { label: "Successful", value: s.success }, { label: "Failed", value: s.failed, note: "failed actions and denied scans" }, { label: "Failed sign-ins", value: s.failedSignIns }]);
+    } catch (e) { $("stats").innerHTML = ""; }
+  }
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/activity-logs", limit: 25, empty: "No activity matches these filters.", params: filters,
+    onData: (d) => { items = d.items; },
+    row: (r) => `<tr><td style="white-space:nowrap">${esc(r.date)}</td><td style="white-space:nowrap">${esc(r.time)}</td><td>${esc(r.typeLabel)}</td>
+      <td style="max-width:26rem;font-size:.84rem">${esc(r.description)}</td><td>${esc(r.user || "—")}<br><span class="muted" style="font-size:.72rem">${esc(r.role || "")}</span></td>
+      <td class="mono" style="font-size:.78rem">${esc(r.ip || "—")}</td><td>${badgeOf(r)}</td><td><div class="am-actions"><button type="button" data-id="${esc(r.id)}">Details</button></div></td></tr>`
+  });
+  function reload(reset) {
+    $("err").textContent = "";
+    if ($("from").value && $("to").value && $("from").value > $("to").value) { $("err").textContent = "The start date must not be after the end date."; return; }
+    list.load(reset); stats();
+  }
+  $("q").addEventListener("input", debounce(() => reload(true)));
+  ["type", "status", "from", "to"].forEach((id) => $(id).addEventListener("change", () => reload(true)));
+  $("reset").addEventListener("click", () => { $("q").value = ""; $("type").value = "all"; $("status").value = "all"; $("from").value = ""; $("to").value = ""; reload(true); });
+
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-id]"); if (!b) return;
+    const pn = AM.panel("Activity details"); AM.state(pn.body, "loading");
+    try {
+      const a = (await api("/admin/activity-logs/" + encodeURIComponent(b.dataset.id))).activity;
+      pn.body.innerHTML = AM.kv([["Record", `<span class="mono">${esc(a.id)}</span>`], ["Activity type", esc(a.typeLabel)], ["Action", `<span class="mono">${esc(a.action)}</span>`], ["Description", esc(a.description)],
+        ["Status", badgeOf(a)], ["User", esc(a.user || "—") + (a.role ? ` (${esc(a.role)})` : "")], ["IP address", a.ip ? `<span class="mono">${esc(a.ip)}</span>` : "Not recorded for this kind of activity"],
+        ["Date", esc(a.date)], ["Time", esc(a.time)], ["Related record", a.reference ? esc(a.reference) : a.target ? `<span class="mono">${esc(a.target)}</span>` : null], ["Recorded from", esc(a.source)]]);
+    } catch (x) { AM.state(pn.body, "error", errText(x)); }
+  });
+
+  $("csv").addEventListener("click", async () => {
+    if ($("from").value && $("to").value && $("from").value > $("to").value) { $("err").textContent = "The start date must not be after the end date."; return; }
+    await AM.download("/admin/activity-logs/export.csv?" + query(), "activity-logs.csv");
+  });
+
+  $("print").addEventListener("click", async () => {
+    const btn = $("print"); btn.disabled = true;
+    try {
+      const r = await api("/admin/activity-logs/report?" + query());
+      const rows = r.items.map((x) => `<tr><td>${esc(x.date)}</td><td>${esc(x.time)}</td><td>${esc(x.typeLabel)}</td><td>${esc(x.description)}</td><td>${esc(x.user || "")}</td><td>${esc(x.ip || "")}</td><td>${esc(x.statusLabel)}</td></tr>`).join("");
+      $("reportArea").innerHTML = `<h1>TransitPass · Activity Log Report</h1><p>Generated ${esc(AM.dt(r.generatedAt))} by ${esc(staffUser.name)}</p>
+        <p>Filters: ${r.filters.length ? esc(r.filters.join(" · ")) : "none (all activity)"}</p>
+        <p>${r.total} activit${r.total === 1 ? "y" : "ies"} · ${r.summary.success} successful · ${r.summary.failed} failed${r.truncated ? ` · showing the newest ${r.items.length}; use Export CSV for the full list` : ""}</p>
+        <table><thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Description</th><th>User</th><th>IP address</th><th>Status</th></tr></thead><tbody>${rows || '<tr><td colspan="7">No activity matches.</td></tr>'}</tbody></table>`;
+      const done = () => { document.body.classList.remove("print-report"); $("reportArea").innerHTML = ""; };
+      window.addEventListener("afterprint", done, { once: true });
+      document.body.classList.add("print-report");
+      window.print();
+    } catch (x) { showToast(errText(x)); } finally { btn.disabled = false; }
+  });
+  reload(true);
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

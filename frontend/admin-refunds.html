@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refunds & Transaction Cancellation · TransitPass</title>
+<meta name="description" content="Review refund requests, approve or reject them with a recorded reason, and cancel a transaction only with proper authorization. Transactions are never deleted.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Refunds & Transaction Cancellation</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Review refund requests, approve or reject them with a recorded reason, and cancel a transaction only with proper authorization. Transactions are never deleted.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-note am-warn"><strong>Authorization required.</strong> Approving a refund or cancelling a transaction needs a written reason and your administrator password. Every action is recorded with your name. Transaction records are never deleted.</div>
+      <article class="card">
+        <div id="tabs"></div>
+        <section id="pRef">
+          <div class="am-bar">
+            <div class="grow"><input id="rq" placeholder="Search student, reason or administrator" maxlength="60" aria-label="Search refunds"></div>
+            <div style="width:150px"><select id="rst" aria-label="Status"><option value="all">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Request</th><th>Student</th><th>Amount</th><th>Reason</th><th>Status</th><th>Decision</th><th></th></tr></thead>
+            <tbody id="refRows"></tbody>
+          </table></div>
+          <div class="am-pager" id="refPager"></div>
+        </section>
+        <section id="pTxn" hidden>
+          <div class="am-bar">
+            <div class="grow"><input id="tq" placeholder="Search student, School ID, driver or TXN reference" maxlength="60" aria-label="Search transactions"></div>
+            <div style="width:150px"><select id="tst" aria-label="State"><option value="all">All transactions</option><option value="active">Not cancelled</option><option value="cancelled">Cancelled</option></select></div>
+            <div><input id="tfrom" type="date" aria-label="From date"></div><div><input id="tto" type="date" aria-label="To date"></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Reference</th><th>Student</th><th>Driver / route</th><th>Fare</th><th>Date</th><th>State</th><th></th></tr></thead>
+            <tbody id="txnRows"></tbody>
+          </table></div>
+          <div class="am-pager" id="txnPager"></div>
+        </section>
+        <section id="pCan" hidden>
+          <div class="am-bar"><div class="grow"><input id="cq" placeholder="Search student, reason or administrator" maxlength="60" aria-label="Search cancellations"></div></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Cancelled</th><th>Reference</th><th>Student</th><th>Fare</th><th>Reason</th><th>Cancelled by</th></tr></thead>
+            <tbody id="canRows"></tbody>
+          </table></div>
+          <div class="am-pager" id="canPager"></div>
+        </section>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  let refunds = [], txns = [];
+  const pwd = (label) => ({ password: true, label });
+  const ref = AM.list({
+    tbody: $("refRows"), pagerEl: $("refPager"), path: "/admin/refunds", empty: "No refund requests yet. Record one from the Transactions tab.", params: () => ({ q: $("rq").value.trim(), status: $("rst").value }), onData: (d) => { refunds = d.items; },
+    row: (r) => `<tr><td><strong class="mono">#${r.id}</strong><br><span class="muted mono" style="font-size:.74rem">${esc(r.reference)}</span><br><span class="muted" style="font-size:.72rem">${esc(AM.dt(r.createdAt))}</span></td><td>${esc(r.student || "—")}</td><td class="mono">${AM.money(r.amount)}</td>
+      <td style="max-width:18rem;font-size:.82rem">${esc(r.reason)}<br><span class="muted" style="font-size:.72rem">by ${esc(r.requestedBy)}</span></td><td>${AM.badge(r.status)}</td>
+      <td style="font-size:.8rem">${r.decidedBy ? `${esc(r.decidedBy)}<br><span class="muted">${esc(AM.dt(r.decidedAt))}</span>${r.decisionReason ? `<br>${esc(r.decisionReason)}` : ""}` : "—"}</td>
+      <td><div class="am-actions"><button data-a="detail" data-id="${r.id}">Details</button>${r.status === "pending" ? `<button class="primary" data-a="approve" data-id="${r.id}">Approve</button><button data-a="reject" data-id="${r.id}">Reject</button>` : ""}</div></td></tr>`
+  });
+  const txn = AM.list({
+    tbody: $("txnRows"), pagerEl: $("txnPager"), path: "/admin/refunds/transactions", empty: "No transactions match.", params: () => ({ q: $("tq").value.trim(), state: $("tst").value, from: $("tfrom").value, to: $("tto").value }), onData: (d) => { txns = d.items; },
+    row: (t) => `<tr><td class="mono">${esc(t.reference)}</td><td>${esc(t.student || "—")}<br><span class="muted mono" style="font-size:.74rem">${esc(t.schoolId || "")}</span></td><td>${esc(t.driver || "—")}<br><span class="muted" style="font-size:.74rem">${esc(t.route || "")}</span></td>
+      <td class="mono">${AM.money(t.amount)}</td><td style="font-size:.78rem">${esc(t.date)} ${esc(t.time)}</td>
+      <td>${t.cancelled ? AM.badge("cancelled") : AM.badge("active", "Completed")}${t.refund ? "<br>" + AM.badge(t.refund.status, "Refund " + t.refund.status) : ""}</td>
+      <td><div class="am-actions">${!t.cancelled && !(t.refund && ["pending", "approved"].includes(t.refund.status)) ? `<button data-a="refund" data-id="${t.id}">Record refund</button>` : ""}${!t.cancelled ? `<button data-a="cancel" data-id="${t.id}">Cancel transaction</button>` : ""}</div></td></tr>`
+  });
+  const can = AM.list({ tbody: $("canRows"), pagerEl: $("canPager"), path: "/admin/refunds/cancellations", empty: "No transactions have been cancelled.", params: () => ({ q: $("cq").value.trim() }),
+    row: (t) => `<tr><td style="font-size:.78rem">${esc(AM.dt(t.cancelledAt))}</td><td class="mono">${esc(t.reference)}</td><td>${esc(t.student || "—")}</td><td class="mono">${AM.money(t.amount)}</td><td>${esc(t.cancelReason)}</td><td>${esc(t.cancelledBy)}</td></tr>` });
+  $("refRows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const r = refunds.find((x) => String(x.id) === b.dataset.id), a = b.dataset.a;
+    if (a === "detail") {
+      const p = AM.panel("Refund request #" + r.id); AM.state(p.body, "loading");
+      try { const d = await api(`/admin/refunds/${r.id}`), t = d.transaction;
+        p.body.innerHTML = AM.kv([["Status", AM.badge(d.refund.status)], ["Amount", AM.money(d.refund.amount)], ["Reason", esc(d.refund.reason)], ["Requested by", esc(d.refund.requestedBy) + " · " + esc(AM.dt(d.refund.createdAt))],
+          ["Decision", d.refund.decidedBy ? esc(d.refund.decidedBy) + " · " + esc(AM.dt(d.refund.decidedAt)) : "Waiting for a decision"], ["Decision note", d.refund.decisionReason ? esc(d.refund.decisionReason) : null],
+          ["Transaction", t ? esc(t.reference) + " · " + esc(t.date) + " " + esc(t.time) : "—"], ["Student", t ? esc(t.student) + " (" + esc(t.schoolId) + ")" : "—"], ["Driver / route", t ? esc(t.driver) + " · " + esc(t.route) : "—"], ["Fare paid", t ? AM.money(t.amount) : "—"], ["Transaction state", t && t.cancelled ? "Cancelled: " + esc(t.cancelReason) : "Completed"]]);
+      } catch (x) { AM.state(p.body, "error", errText(x)); } return;
+    }
+    const approve = a === "approve";
+    await AM.confirm({ title: (approve ? "Approve" : "Reject") + ` refund #${r.id}`, message: `${AM.money(r.amount)} for ${esc(r.student || "the student")} (${esc(r.reference)}). The student is notified of your decision.`, confirm: approve ? "Approve refund" : "Reject refund", danger: !approve,
+      reason: { label: approve ? "Note (optional)" : "Reason for rejecting", required: !approve, min: 3 }, password: true,
+      run: (v) => api(`/admin/refunds/${r.id}/decision`, { method: "POST", body: { decision: approve ? "approved" : "rejected", reason: v.reason || undefined, password: v.password } }) });
+    ref.load(); txn.load();
+  });
+  $("txnRows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const t = txns.find((x) => String(x.id) === b.dataset.id);
+    if (b.dataset.a === "refund") { await AM.form({ title: "Record refund request", submit: "Record request", intro: `${esc(t.reference)} · ${esc(t.student)} · fare ${AM.money(t.amount)}`,
+      fields: [{ name: "amount", label: "Refund amount", type: "number", min: 0.01, max: t.amount, step: 0.01, required: true, value: t.amount.toFixed(2) }, { name: "reason", label: "Refund reason", type: "textarea", required: true, maxlength: 500 }],
+      onSubmit: async (v) => { await api("/admin/refunds", { method: "POST", body: { scanId: t.id, amount: Number(v.amount), reason: v.reason } }); showToast("Refund request recorded. Review it in the Refund requests tab."); } }); return txn.load(); }
+    await AM.confirm({ title: "Cancel transaction", message: `<strong>${esc(t.reference)}</strong> (${esc(t.student)}, ${AM.money(t.amount)}) will be marked cancelled. The record is kept; nothing is deleted.`, confirm: "Cancel transaction", danger: true, reason: { label: "Cancellation reason", min: 5 }, password: true,
+      run: (v) => api(`/admin/refunds/transactions/${t.id}/cancel`, { method: "POST", body: { reason: v.reason, password: v.password } }) });
+    txn.load(); can.load(); ref.load();
+  });
+  [["rq", ref], ["tq", txn], ["cq", can]].forEach(([id, l]) => $(id).addEventListener("input", debounce(() => l.load(true))));
+  [["rst", ref], ["tst", txn], ["tfrom", txn], ["tto", txn]].forEach(([id, l]) => $(id).addEventListener("change", () => l.load(true)));
+  AM.tabs($("tabs"), [["ref", "Refund requests & history"], ["txn", "Transactions"], ["can", "Cancellation history"]], (id) => { $("pRef").hidden = id !== "ref"; $("pTxn").hidden = id !== "txn"; $("pCan").hidden = id !== "can"; ({ ref, txn, can })[id].load(true); });
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

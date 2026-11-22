@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System Settings · TransitPass</title>
+<meta name="description" content="General information, branding, your administrator profile and password, session timeout, notification settings, maintenance, and backup settings.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>System Settings</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">General information, branding, your administrator profile and password, session timeout, notification settings, maintenance, and backup settings.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div id="tabs"></div>
+        <section id="s_general"></section>
+        <section id="s_admin" hidden>
+          <h3 style="margin:0 0 .5rem;font-size:1rem">Administrator profile</h3>
+          <form id="profForm" novalidate><div class="am-grid">
+            <div><label class="label-caps muted" for="pName">Full name</label><input id="pName" maxlength="120"></div>
+            <div><label class="label-caps muted" for="pUser">Username</label><input id="pUser" maxlength="60"></div>
+            <div><label class="label-caps muted" for="pEmail">Email</label><input id="pEmail" type="email" maxlength="190"></div></div>
+            <p class="err-text" id="profErr" role="alert"></p><div class="row" style="justify-content:flex-start"><button class="primary" type="submit">Save profile</button></div></form>
+          <h3 style="margin:1.6rem 0 .5rem;font-size:1rem">Password management</h3>
+          <form id="pwForm" novalidate><div class="am-grid">
+            <div><label class="label-caps muted" for="pwCur">Current password</label><input id="pwCur" type="password" autocomplete="current-password" maxlength="72"></div>
+            <div><label class="label-caps muted" for="pwNew">New password (min 8 characters)</label><input id="pwNew" type="password" autocomplete="new-password" maxlength="72"></div>
+            <div><label class="label-caps muted" for="pwCon">Confirm new password</label><input id="pwCon" type="password" autocomplete="new-password" maxlength="72"></div></div>
+            <p class="err-text" id="pwErr" role="alert"></p><div class="row" style="justify-content:flex-start"><button class="primary" type="submit">Change password</button></div>
+            <p class="hint muted" style="font-size:.78rem">Changing your password signs you out on every other device.</p></form>
+        </section>
+        <section id="s_session" hidden></section>
+        <section id="s_notif" hidden></section>
+        <section id="s_security" hidden></section>
+        <section id="s_maint" hidden></section>
+        <section id="s_backup" hidden></section>
+        <section id="s_info" hidden></section>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  const SEC = ["s_general", "s_admin", "s_session", "s_notif", "s_security", "s_maint", "s_backup", "s_info"];
+  const loaded = {};
+  const F = (key, label, type, extra = {}) => ({ key, label, type, ...extra });
+  const forms = {
+    s_session: () => AM.settingsForm($("s_session"), { note: '<p class="muted" style="font-size:.85rem;margin-top:0">An administrator who does nothing for this long is signed out automatically. The sign-in itself also expires after the lifetime configured on the server (JWT_EXPIRES_IN).</p>', fields: [F("session.idleMinutes", "Idle session timeout (minutes)", "number", { min: 5, max: 240, hint: "5 to 240 minutes." })], onSaved: () => showToast("Applies the next time a page is opened.") }),
+    s_notif: () => AM.settingsForm($("s_notif"), { fields: [F("notifications.accountStatus", "Notify people when their account status changes", "checkbox"), F("notifications.announcements", "Send a notification when an announcement is published", "checkbox"),
+      F("notifications.eligibilityDays", "Warn students this many days before their discount expires", "number", { min: 1, max: 120 }), F("notifications.qrDays", "Warn students this many days before their QR code expires", "number", { min: 1, max: 60 })] }),
+    s_security: () => AM.settingsForm($("s_security"), { note: '<p class="muted" style="font-size:.85rem;margin-top:0">Thresholds used by Suspicious Activity detection, and whether drivers must scan from a registered device.</p>', fields: [
+      F("devices.enforce", "Require a registered, active device for driver scanning", "checkbox", { hint: "Register every device first (Driver Devices), or drivers will be refused." }),
+      F("suspicious.repeatCount", "Repeated scans: number of scans", "number", { min: 2, max: 50 }), F("suspicious.repeatMinutes", "Repeated scans: within (minutes)", "number", { min: 1, max: 240 }),
+      F("suspicious.duplicateSeconds", "Duplicate transaction: within (seconds)", "number", { min: 5, max: 3600 }), F("suspicious.burstCount", "Unusual activity: scans by one driver", "number", { min: 3, max: 500 }),
+      F("suspicious.burstMinutes", "Unusual activity: within (minutes)", "number", { min: 1, max: 120 }), F("suspicious.offHoursStart", "Off-hours start (hour 0-23)", "number", { min: 0, max: 23 }),
+      F("suspicious.offHoursEnd", "Off-hours end (hour 0-23)", "number", { min: 0, max: 23 }), F("suspicious.multiDeviceHours", "Multiple devices: within (hours)", "number", { min: 1, max: 72 })] }),
+    s_maint: () => AM.settingsForm($("s_maint"), { note: '<div class="am-note am-warn">While maintenance mode is ON, students and drivers (including scanning) are blocked with the message below. Administrators are never blocked.</div>', fields: [
+      F("maintenance.enabled", "Maintenance mode is ON", "checkbox"), F("maintenance.message", "Message shown to students and drivers", "text", { maxlength: 300 }), F("maintenance.window", "Planned maintenance window (information only)", "text", { maxlength: 160, hint: "For example: Sunday 1:00–2:00 AM." })] }),
+    s_backup: () => AM.settingsForm($("s_backup"), { note: '<p class="muted" style="font-size:.85rem;margin-top:0">Manual backups, history, downloads and recovery steps are on <a href="admin-backups.html">Backups &amp; Retention</a>.</p>', fields: [
+      F("backup.enabled", "Run scheduled backups", "checkbox"), F("backup.frequency", "Frequency", "select", { options: [["daily", "Daily"], ["weekly", "Weekly"]] }), F("backup.time", "Time of day (24-hour, HH:MM)", "text", { maxlength: 5 }),
+      F("backup.keepCount", "Always keep the newest … backups", "number", { min: 1, max: 365 }), F("backup.keepDays", "Delete older backups after … days", "number", { min: 1, max: 3650 }),
+      F("retention.activityLogDays", "Keep the activity log for … days (0 = forever)", "number", { min: 0, max: 3650, hint: "0 or at least 30." }), F("retention.notificationDays", "Keep notifications for … days (0 = forever)", "number", { min: 0, max: 3650 }), F("retention.reviewedFlagDays", "Keep reviewed suspicious flags for … days (0 = forever)", "number", { min: 0, max: 3650 })] })
+  };
+  async function general() {
+    const el = $("s_general"), cur = (await api("/admin/settings")).settings;
+    el.innerHTML = `<h3 style="margin:0 0 .5rem;font-size:1rem">System logo</h3>
+      <div class="row" style="margin-bottom:1rem"><div id="logoBox" style="width:4.5rem;height:4.5rem;border:1px solid var(--border);border-radius:.8rem;display:grid;place-items:center;overflow:hidden;font-weight:700;color:var(--accent)">TP</div>
+        <input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp"><button class="primary" id="logoUp" type="button">Upload logo</button><button id="logoDel" type="button" ${cur["system.hasLogo"] ? "" : "hidden"}>Use default</button></div>
+      <p class="hint muted" style="font-size:.78rem;margin-top:-.4rem">PNG, JPG or WEBP up to 250 KB. It replaces the “TP” mark in the sidebar.</p><div id="genForm"></div>`;
+    if (cur["system.hasLogo"]) { const l = (await api("/admin/settings/logo")).logo; if (l) $("logoBox").innerHTML = `<img src="${l}" alt="Current logo" style="width:100%;height:100%;object-fit:contain">`; }
+    $("logoUp").onclick = (e) => AM.act(e.currentTarget, async () => { const f = $("logoFile").files[0]; if (!f) throw new Error("Choose an image first."); const fd = new FormData(); fd.append("file", f); await api("/admin/settings/logo", { method: "POST", body: fd }); showToast("Logo updated."); general(); api("/admin/settings/runtime").then(applyBranding); });
+    $("logoDel").onclick = (e) => AM.act(e.currentTarget, async () => { await api("/admin/settings/logo", { method: "DELETE" }); showToast("Default logo restored."); general(); });
+    await AM.settingsForm($("genForm"), { fields: [F("system.name", "System name", "text", { maxlength: 60 }), F("system.organization", "Organization / school", "text", { maxlength: 120 }), F("system.contactEmail", "Contact email", "email", { maxlength: 190 })], onSaved: () => api("/admin/settings/runtime").then(applyBranding) });
+  }
+  async function info() {
+    const i = await api("/admin/settings/system"), up = i.uptimeSeconds, h = Math.floor(up / 3600);
+    $("s_info").innerHTML = `<p class="muted" style="font-size:.85rem;margin-top:0">Read-only information about this installation, useful when asking for support.</p>` + AM.kv([["Application", esc(i.application)], ["Environment", esc(i.environment)], ["Server time", esc(AM.dt(i.serverTime))], ["Time zone", esc(i.timezone)], ["Uptime", `${h} h ${Math.floor((up % 3600) / 60)} min`],
+      ["Node.js", esc(i.node)], ["Database", esc(i.database)], ["Platform", esc(i.platform)], ["Email delivery", esc(i.emailMode)], ["Records", `${i.counts.students} students · ${i.counts.drivers} drivers · ${i.counts.scans} scans`]]);
+  }
+  async function profile() {
+    const { admin } = await api("/auth/me"); $("pName").value = admin.name || ""; $("pUser").value = admin.username || ""; $("pEmail").value = admin.email || "";
+  }
+  $("profForm").addEventListener("submit", async (e) => { e.preventDefault(); $("profErr").textContent = ""; try { await api("/admin/account", { method: "PATCH", body: { name: $("pName").value, username: $("pUser").value, email: $("pEmail").value } }); showToast("Profile updated."); $("adminWho").textContent = $("pName").value; } catch (x) { $("profErr").textContent = errText(x); } });
+  $("pwForm").addEventListener("submit", async (e) => { e.preventDefault(); $("pwErr").textContent = ""; try { const r = await api("/admin/account/password", { method: "POST", body: { current: $("pwCur").value, new: $("pwNew").value, confirm: $("pwCon").value } }); setToken("staff", r.token); showToast("Password updated. Other devices were signed out."); $("pwForm").reset(); } catch (x) { $("pwErr").textContent = errText(x); } });
+  AM.tabs($("tabs"), [["s_general", "General & branding"], ["s_admin", "Administrator & password"], ["s_session", "Session timeout"], ["s_notif", "Notifications"], ["s_security", "Security monitoring"], ["s_maint", "Maintenance"], ["s_backup", "Backup settings"], ["s_info", "System information"]], async (id) => {
+    SEC.forEach((s) => { $(s).hidden = s !== id; });
+    try { if (id === "s_general") await general(); else if (id === "s_admin") await profile(); else if (id === "s_info") await info(); else if (forms[id]) await forms[id](); } catch (e) { showToast(errText(e)); }
+  });
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

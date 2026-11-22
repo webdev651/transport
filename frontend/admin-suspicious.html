@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suspicious Activity · TransitPass</title>
+<meta name="description" content="Detect repeated QR scans, duplicate transactions, unusual scanning and drivers using several devices. Review each flag and record your notes before taking any action.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Suspicious Activity</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Detect repeated QR scans, duplicate transactions, unusual scanning and drivers using several devices. Review each flag and record your notes before taking any action.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-stats" id="stats"></div>
+      <div class="am-note"><strong>Review first.</strong> Nothing happens to a student or driver automatically. Mark a flag as reviewed (with your investigation notes) before you can flag an account, deactivate a QR code or deactivate a driver.</div>
+      <article class="card">
+        <div class="am-bar">
+          <div class="grow"><input id="q" placeholder="Search student, School ID, driver or summary" maxlength="60" aria-label="Search flags"></div>
+          <div style="width:150px"><select id="st" aria-label="Status"><option value="open">Open</option><option value="reviewed">Reviewed</option><option value="actioned">Action taken</option><option value="dismissed">Dismissed</option><option value="all">All</option></select></div>
+          <div style="width:200px"><select id="ty" aria-label="Type"><option value="all">All types</option><option value="repeated_scan">Repeated QR scans</option><option value="duplicate_transaction">Duplicate transactions</option><option value="unusual_activity">Unusual scanning</option><option value="multi_device">Multiple devices</option></select></div>
+          <div style="width:140px"><select id="sv" aria-label="Severity"><option value="all">Any severity</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+          <button class="primary" id="runBtn">Run detection now</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Severity</th><th>Type</th><th>What was detected</th><th>Student / driver</th><th>Detected</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="am-pager" id="pager"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/suspicious", empty: "Nothing flagged for this filter.", params: () => ({ q: $("q").value.trim(), status: $("st").value, type: $("ty").value, severity: $("sv").value }),
+    onData: (d) => AM.stats($("stats"), [{ label: "Open", value: d.counts.open }, { label: "Reviewed", value: d.counts.reviewed }, { label: "Action taken", value: d.counts.actioned }, { label: "Dismissed", value: d.counts.dismissed }]),
+    row: (f) => `<tr><td>${AM.badge(f.severity)}</td><td style="font-size:.82rem">${esc(f.typeLabel)}</td><td style="max-width:22rem;font-size:.84rem">${esc(f.summary)}</td>
+      <td style="font-size:.82rem">${f.student ? `${esc(f.student)}<br><span class="muted mono" style="font-size:.72rem">${esc(f.schoolId || "")}</span>` : ""}${f.driver ? `${f.student ? "<br>" : ""}<span class="muted">Driver:</span> ${esc(f.driver)}` : ""}</td>
+      <td style="font-size:.78rem">${esc(AM.dt(f.detectedAt))}</td><td>${AM.badge(f.status)}${f.actionTaken ? `<br><span class="muted" style="font-size:.72rem">${esc(f.actionTaken)}</span>` : ""}</td><td><button class="primary" data-id="${f.id}">Investigate</button></td></tr>`
+  });
+  async function open(id) {
+    const p = AM.panel("Flag #" + id); AM.state(p.body, "loading");
+    async function paint() {
+      const d = await api(`/admin/suspicious/${id}`), f = d.flag, final = ["dismissed", "actioned"].includes(f.status);
+      p.body.innerHTML = AM.kv([["Type", esc(f.typeLabel)], ["Severity", AM.badge(f.severity)], ["Status", AM.badge(f.status)], ["Summary", esc(f.summary)], ["Student", f.student ? esc(f.student) + " (" + esc(f.schoolId || "") + ")" : null], ["Driver", f.driver ? esc(f.driver) : null], ["Detected", esc(AM.dt(f.detectedAt))],
+        ["Reviewed by", f.reviewedBy ? esc(f.reviewedBy) + " · " + esc(AM.dt(f.reviewedAt)) : null], ["Action taken", f.actionTaken ? esc(f.actionTaken) : null], ["Devices", d.details.devices ? d.details.devices.map((x) => `<span class="mono">${esc(x)}</span>`).join(", ") : null]])
+      + `<h3 style="margin:1rem 0 .3rem;font-size:.95rem">Evidence (${d.evidence.length} scan${d.evidence.length === 1 ? "" : "s"})</h3>` + (d.evidence.length ? `<div class="table-wrap"><table><thead><tr><th>Time</th><th>Student</th><th>Driver</th><th>Result</th><th>Device</th></tr></thead><tbody>${d.evidence.map((s) => `<tr><td class="mono" style="font-size:.76rem">${esc(AM.dt(s.at))}</td><td>${esc(s.student || "—")}</td><td>${esc(s.driver || "—")}</td><td>${AM.badge(s.result === "granted" ? "granted" : s.result)}</td><td class="mono" style="font-size:.72rem">${esc(s.device || "—")}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted" style="font-size:.84rem">No individual scans are attached to this flag.</p>')
+      + `<h3 style="margin:1rem 0 .3rem;font-size:.95rem">Investigation notes</h3>` + (d.notes.length ? `<ul class="am-tl">${d.notes.map((n) => `<li>${esc(n.note)}<br><span class="muted">${esc(n.admin)} · ${esc(AM.dt(n.at))}</span></li>`).join("")}</ul>` : '<p class="muted" style="font-size:.84rem">No notes yet.</p>')
+      + (f.status === "actioned" ? "" : `<div><label class="label-caps muted" for="nt">Add a note</label><textarea id="nt" maxlength="2000"></textarea><p class="err-text" id="nerr"></p><div class="row" style="justify-content:flex-start"><button id="addNote">Add note</button>${f.status === "open" || f.status === "dismissed" ? `<button class="primary" id="markRev">Mark as reviewed</button>` : ""}${f.status === "open" ? `<button id="dismiss">Dismiss as false alarm</button>` : ""}</div></div>`)
+      + (f.status === "reviewed" ? `<h3 style="margin:1rem 0 .3rem;font-size:.95rem">Take action</h3><p class="muted" style="font-size:.82rem;margin-top:0">Available because this flag was reviewed.</p><div class="am-actions">${f.studentId ? '<button data-act="flag_student">Flag student account</button><button data-act="deactivate_qr">Deactivate student QR code</button>' : ""}${f.driverId ? '<button data-act="deactivate_driver">Deactivate driver account</button>' : ""}</div>` : "");
+      const note = () => $("nt").value.trim();
+      const run = (path, body, msg) => async (e) => { $("nerr").textContent = ""; try { await api(path, { method: "POST", body }); showToast(msg); await paint(); list.load(); } catch (x) { $("nerr").textContent = errText(x); } };
+      if ($("addNote")) $("addNote").onclick = (e) => { if (note().length < 3) { $("nerr").textContent = "Write a note first."; return; } run(`/admin/suspicious/${id}/notes`, { note: note() }, "Note added.")(e); };
+      if ($("markRev")) $("markRev").onclick = (e) => { if (note().length < 5) { $("nerr").textContent = "Record your investigation notes (at least 5 characters) to mark this as reviewed."; return; } run(`/admin/suspicious/${id}/review`, { decision: "reviewed", note: note() }, "Marked as reviewed.")(e); };
+      if ($("dismiss")) $("dismiss").onclick = (e) => { if (note().length < 5) { $("nerr").textContent = "Say why this is a false alarm (at least 5 characters)."; return; } run(`/admin/suspicious/${id}/review`, { decision: "dismissed", note: note() }, "Dismissed.")(e); };
+      p.body.querySelectorAll("button[data-act]").forEach((b) => { b.onclick = async () => { await AM.confirm({ title: b.textContent, message: "This changes the account. It is recorded in the activity log with your name.", confirm: b.textContent, danger: true, reason: { label: "Why are you taking this action?", min: 5 }, run: (v) => api(`/admin/suspicious/${id}/action`, { method: "POST", body: { action: b.dataset.act, note: v.reason } }) }); await paint().catch(() => {}); list.load(); }; });
+    }
+    try { await paint(); } catch (x) { AM.state(p.body, "error", errText(x)); }
+  }
+  $("rows").addEventListener("click", (e) => { const b = e.target.closest("button[data-id]"); if (b) open(b.dataset.id); });
+  $("runBtn").onclick = (e) => AM.act(e.currentTarget, async () => { const r = await api("/admin/suspicious/detect", { method: "POST", body: { hours: 24 } }); showToast(r.newFlags ? `${r.newFlags} new flag(s) found (${r.scansChecked} scans checked).` : `No new flags (${r.scansChecked} scans checked).`); list.load(true); });
+  $("q").addEventListener("input", debounce(() => list.load(true))); ["st", "ty", "sv"].forEach((id) => $(id).addEventListener("change", () => list.load(true)));
+  list.load();
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

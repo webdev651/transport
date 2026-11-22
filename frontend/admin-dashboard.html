@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Dashboard · TransitPass</title>
+<meta name="description" content="Scan volume, subsidy released, denials and the verification queue, live from the database.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-dashboard.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <a href="landing.html" class="brand-logo"><img src="img/dash-logo.png" alt="TransitPass"></a>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav" aria-label="Administrator navigation"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps" style="margin:0;font-size:.65rem">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-weight:600">…</p>
+      <p id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+    <img class="side-city" src="img/dash-side-city.png" alt="">
+  </aside>
+  <main>
+    <header class="topbar">
+      <button class="burger" id="navToggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="sidebar">☰</button>
+      <form class="search" id="searchForm" role="search"><input id="gq" type="search" placeholder="Search students by name or ID…" aria-label="Search students" maxlength="60"></form>
+      <span class="spacer"></span>
+      <a class="bell" id="bell" href="admin-verifications.html" aria-label="Pending verifications" hidden>🔔<b id="bellN">0</b></a>
+      <div class="profile">
+        <button id="profBtn" aria-haspopup="true"><span class="avatar" id="av">A</span><span class="who"><span id="pName">Admin</span><small>Administrator</small></span> ▾</button>
+        <div class="menu" id="profMenu"><a href="admin-account.html">My Account</a><a href="#" id="logout2">Log out</a></div>
+      </div>
+    </header>
+    <div class="ad-wrap">
+      <div class="ad-head">
+        <div><h1>Dashboard</h1><p>Students, QR codes, drivers and transactions at a glance.</p></div>
+        <div class="ad-head-r"><span id="updated" aria-live="polite"></span><button class="ad-btn" id="refresh" type="button">Refresh</button></div>
+      </div>
+
+      <section class="ad-stats" id="stats" aria-label="Key statistics"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></section>
+
+      <section class="ad-grid2" aria-label="Transaction charts">
+        <article class="ad-card"><div class="ad-ch"><div><h2>Daily Transactions</h2><p class="ad-sub">Last 14 days</p></div><div class="ad-big" id="bigDaily"></div></div><div class="ad-chart" id="cDaily"><div class="sk"></div></div></article>
+        <article class="ad-card"><div class="ad-ch"><div><h2>Weekly Transactions</h2><p class="ad-sub">Last 8 weeks (Monday to Sunday)</p></div><div class="ad-big" id="bigWeekly"></div></div><div class="ad-chart" id="cWeekly"><div class="sk"></div></div></article>
+        <article class="ad-card"><div class="ad-ch"><div><h2>Monthly Transactions</h2><p class="ad-sub">Last 12 months</p></div><div class="ad-big" id="bigMonthly"></div></div><div class="ad-chart" id="cMonthly"><div class="sk"></div></div></article>
+        <article class="ad-card" id="discountCard"><div class="ad-ch"><div><h2>Discount Statistics</h2><p class="ad-sub">Student discounts granted on rides</p></div></div><div id="cDiscount"><div class="sk"></div></div></article>
+      </section>
+
+      <section class="ad-grid2 wide-left">
+        <article class="ad-card">
+          <div class="ad-ch"><div><h2>Recent System Activities</h2><p class="ad-sub">Administrator actions, registrations, verifications, QR codes, drivers and transactions</p></div></div>
+          <div id="acts"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+          <div class="ad-more"><button class="ad-btn" id="moreActs" type="button" hidden>Load more</button></div>
+        </article>
+        <div class="ad-side">
+          <article class="ad-card"><h2 style="margin-bottom:.8rem">Needs attention</h2><div id="attn"><div class="sk"></div></div></article>
+          <article class="ad-card"><h2 style="margin-bottom:.8rem">Quick actions</h2>
+            <div class="ad-qa"><a href="verify.html">Verify Pass</a><a href="students.html">Register Student</a><a href="admin-reports.html">View Reports</a><a href="admin-drivers.html">Manage Drivers</a></div></article>
+          <article class="ad-card"><h2 style="margin-bottom:.5rem">System status</h2><div id="status"></div></article>
+        </div>
+      </section>
+
+      <section class="ad-card" id="transactions" aria-label="Recent transactions">
+        <div class="ad-ch"><div><h2>Recent Transactions</h2><p class="ad-sub" id="txCount"></p></div>
+          <div class="ad-tools"><input class="ad-search" id="txQ" type="search" placeholder="Search reference, student, ID or driver…" aria-label="Search transactions" maxlength="100"></div></div>
+        <div class="ad-tw" id="txTable"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+        <div class="ad-pager" id="txPager"></div>
+      </section>
+      <dialog class="ad-dlg" id="txDlg" aria-labelledby="txDlgTitle"></dialog>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+(async () => {
+  const $ = (id) => document.getElementById(id);
+  if (!(await requireStaff(["admin"]))) return;
+  $("pName").textContent = staffUser.name; $("av").textContent = initials(staffUser.name);
+  $("navToggle").addEventListener("click", () => { if (innerWidth > 860) document.body.classList.toggle("collapsed"); });
+  $("profBtn").onclick = (e) => { e.stopPropagation(); $("profMenu").classList.toggle("open"); };
+  document.addEventListener("click", () => $("profMenu").classList.remove("open"));
+  $("logout2").onclick = (e) => { e.preventDefault(); logoutStaff(); };
+  $("searchForm").addEventListener("submit", (e) => { e.preventDefault(); const q = $("gq").value.trim(); location.href = "students.html" + (q ? "?q=" + encodeURIComponent(q) : ""); });
+
+  /* ---------- helpers ---------- */
+  const money = (n) => "₱" + Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const num = (n) => Number(n || 0).toLocaleString("en-US");
+  const P = {
+    users: "M16 11a4 4 0 1 0-8 0M4 21a8 8 0 0 1 16 0M17 4.5a4 4 0 0 1 0 7M21 21a6 6 0 0 0-3-5.2",
+    shield: "M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6zM8.5 12l2.5 2.5 4.5-5",
+    clock: "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0",
+    qr: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v7M14 20h3",
+    bus: "M5 17h14M4 6h16v11H4zM8 21v-4M16 21v-4M4 11h16",
+    receipt: "M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6",
+    tag: "M3 12V4h8l10 10-8 8zM7.5 8.5h.01",
+    lock: "M5 11h14v10H5zM8 11V8a4 4 0 0 1 8 0v3",
+    userPlus: "M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M2 21a7 7 0 0 1 14 0M19 8v6M16 11h6",
+    user: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21a8 8 0 0 1 16 0",
+    gear: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M14 4v4M8 10v4M16 16v4"
+  };
+  const svg = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  const sk = (n) => Array.from({ length: n }, () => '<div class="sk"></div>').join("");
+  const failBox = (msg, retry) => `<div class="ad-err"><span>${esc(msg)}</span><button class="ad-btn" type="button" data-retry="${retry}">Try again</button></div>`;
+  const state = { acts: [], actsMore: false, txPage: 0, txSeq: 0, q: "" };
+  const PER = 8;
+
+  /* ---------- statistic cards ---------- */
+  const STATS = [
+    ["totalStudents", "Total Registered Students", "users", "", "students.html", (s, n) => `${num(n.newStudentsThisWeek)} new in the last 7 days`, num],
+    ["verifiedStudents", "Total Verified Students", "shield", "t-green", "students.html", (s) => `${s.totalStudents ? Math.round((s.verifiedStudents / s.totalStudents) * 100) : 0}% of all students`, num],
+    ["pendingApplications", "Pending Student Applications", "clock", "t-amber", "admin-verifications.html", () => "Waiting for review", num],
+    ["activeQrCodes", "Total Active QR Codes", "qr", "t-indigo", "admin-qr-codes.html", () => "Not expired or deactivated", num],
+    ["totalDrivers", "Total Registered Drivers", "bus", "t-teal", "admin-drivers.html", (s, n) => `${num(n.activeDrivers)} active`, num],
+    ["totalTransactions", "Total Transactions", "receipt", "", "#transactions", (s, n) => `${num(n.transactionsToday)} today`, num],
+    ["totalDiscounts", "Total Discounts Granted", "tag", "t-purple", "#discountCard", (s, n) => `${money(n.discountsToday)} today`, money]
+  ];
+  function renderStats(d) {
+    $("stats").innerHTML = STATS.map(([key, label, icon, tone, href, note, fmtv]) => `<a class="ad-stat ${tone}" href="${href}">
+      <span class="ad-ic">${svg(P[icon])}</span><div><p class="l">${esc(label)}</p><p class="v">${esc(fmtv(d.stats[key]))}</p><p class="n">${esc(note(d.stats, d.notes))}</p></div></a>`).join("");
+    const pend = d.stats.pendingApplications;
+    $("bell").hidden = !pend; $("bellN").textContent = pend;
+    const vl = document.querySelector('.nav a[href="admin-verifications.html"]');
+    if (vl && !vl.querySelector(".cnt") && pend > 0) vl.insertAdjacentHTML("beforeend", `<span class="cnt">${pend}</span>`);
+    const row = (label, n, href) => `<a class="ad-row" href="${href}"><span>${esc(label)}</span><strong>${num(n)}</strong></a>`;
+    $("attn").innerHTML = row("Student applications to review", pend, "admin-verifications.html") + row("Active QR codes", d.stats.activeQrCodes, "admin-qr-codes.html") + row("Active drivers", d.notes.activeDrivers, "admin-drivers.html");
+    const st = (name, ok) => `<div class="ad-st"><span>${name}</span><span class="${ok ? "ok" : "no"}">● ${ok ? "Online" : "Unavailable"}</span></div>`;
+    $("status").innerHTML = st("API connection", true) + st("Database", true) + `<p class="ad-sub" style="margin-top:.5rem">Data as of ${esc(fmtDateTime(d.asOf))}</p>`;
+    $("updated").textContent = "Updated " + new Date(d.asOf).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  /* ---------- charts ---------- */
+  function bars(el, items, labelOf, tipOf) {
+    const W = 560, H = 190, padL = 34, padB = 24, padT = 10, n = items.length;
+    const max = Math.max(1, ...items.map((i) => i.transactions));
+    const top = max <= 4 ? 4 : Math.ceil(max / 4) * 4;
+    const bw = (W - padL) / n, bar = bw * 0.62, h = H - padB - padT;
+    const y = (v) => H - padB - (v / top) * h;
+    const grid = [0, 0.5, 1].map((f) => `<line x1="${padL}" x2="${W}" y1="${y(top * f)}" y2="${y(top * f)}" stroke="#e3ebf8"/><text x="${padL - 6}" y="${y(top * f) + 4}" font-size="10" text-anchor="end" fill="#7a8aa8">${Math.round(top * f)}</text>`).join("");
+    const step = n > 10 ? 2 : 1;
+    const cols = items.map((it, i) => {
+      const x = padL + i * bw + (bw - bar) / 2, last = i === n - 1;
+      const hh = Math.max(it.transactions ? 3 : 0, (it.transactions / top) * h);
+      return `<rect x="${x}" y="${H - padB - hh}" width="${bar}" height="${hh}" rx="4" fill="${last ? "#1e5fd0" : "#9dbcf1"}"><title>${esc(tipOf(it))}</title></rect>` +
+        ((n - 1 - i) % step === 0 ? `<text x="${x + bar / 2}" y="${H - 7}" font-size="10" text-anchor="middle" fill="#7a8aa8">${esc(labelOf(it))}</text>` : "");
+    }).join("");
+    const none = items.every((i) => !i.transactions) ? `<text x="${(W + padL) / 2}" y="${H / 2 - 6}" font-size="13" text-anchor="middle" fill="#7a8aa8">No transactions in this period</text>` : "";
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Bar chart of transactions">${grid}${cols}${none}</svg>`;
+  }
+  const trend = (cur, prev, vs) => {
+    if (!prev) return `<span class="ad-trend">${cur ? "New activity" : "No change"}</span>`;
+    const p = Math.round(((cur - prev) / prev) * 100);
+    return `<span class="ad-trend ${p > 0 ? "up" : p < 0 ? "down" : ""}">${p > 0 ? "▲" : p < 0 ? "▼" : "●"} ${Math.abs(p)}% vs ${vs}</span>`;
+  };
+  function renderCharts(c) {
+    const big = (el, s, unit, vs) => { $(el).innerHTML = `<b>${num(s.total)}</b><span>${unit}</span><br>${trend(s.current, s.previous, vs)}`; };
+    bars($("cDaily"), c.daily.items, (i) => i.label.replace(/^\w+ /, ""), (i) => `${i.label}: ${i.transactions} transactions, ${money(i.discount)} discount`);
+    big("bigDaily", c.daily, "transactions", "yesterday");
+    bars($("cWeekly"), c.weekly.items, (i) => i.label, (i) => `Week of ${i.start} to ${i.end}: ${i.transactions} transactions`);
+    big("bigWeekly", c.weekly, "transactions", "last week");
+    bars($("cMonthly"), c.monthly.items, (i) => i.label, (i) => `${i.label}: ${i.transactions} transactions, ${money(i.discount)} discount`);
+    big("bigMonthly", c.monthly, "transactions", "last month");
+
+    const d = c.discounts, C = 2 * Math.PI * 54;
+    $("cDiscount").innerHTML = `<div class="ad-disc">
+      <div class="ad-donut"><svg viewBox="0 0 140 140" role="img" aria-label="${d.rideUtilization}% of rides received the discount"><circle cx="70" cy="70" r="54" fill="none" stroke="#e8eefb" stroke-width="16"/>
+        <circle cx="70" cy="70" r="54" fill="none" stroke="#2f6fdb" stroke-width="16" stroke-linecap="round" stroke-dasharray="${(d.rideUtilization / 100) * C} ${C}"/></svg>
+        <div class="mid"><b>${d.rideUtilization}%</b><span>rides with discount</span></div></div>
+      <div><p class="ad-sub" style="margin:0">Total discounts granted</p><p class="ad-money">${money(d.totalDiscount)}</p>
+        <dl class="ad-kv"><div><dt>Today</dt><dd>${money(d.todayDiscount)}</dd></div><div><dt>This month</dt><dd>${money(d.monthDiscount)}</dd></div>
+        <div><dt>Discounted rides</dt><dd>${num(d.discountedRides)} of ${num(d.totalRides)}</dd></div><div><dt>Average discount per ride</dt><dd>${money(d.averageDiscount)}</dd></div></dl></div></div>
+      <div style="margin-top:1rem"><div style="display:flex;justify-content:space-between;font-size:.82rem"><span>Eligible students using the discount</span><b>${num(d.studentsUsingDiscount)} of ${num(d.eligibleStudents)} (${d.studentUtilization}%)</b></div>
+        <div class="ad-bar"><i style="width:${d.studentUtilization}%"></i></div></div>`;
+  }
+
+  /* ---------- recent activities ---------- */
+  const CAT = { auth: P.lock, student: P.users, registration: P.userPlus, verification: P.shield, qr: P.qr, driver: P.bus, transaction: P.receipt, account: P.user, system: P.gear };
+  const STATUS_CLASS = { success: "active", completed: "active", verified: "active", active: "active", pending: "pending", review: "pending", failed: "rejected", rejected: "rejected", revoked: "rejected", inactive: "expired", expired: "expired" };
+  function renderActs() {
+    $("acts").innerHTML = state.acts.length ? state.acts.map((a) => `<div class="ad-act c-${esc(a.category)}">
+      <span class="ad-ic">${svg(CAT[a.category] || P.gear)}</span>
+      <div class="b"><p class="t">${esc(a.description)}</p><p class="m">${esc(a.user)} · ${esc(a.role)} · ${esc(fmtDateTime(a.at))}</p></div>
+      <div class="s">${badge(STATUS_CLASS[a.statusKey] || "pending", a.status)}</div></div>`).join("")
+      : '<p class="ad-empty">No activities recorded yet. They appear here as administrators and students use the system.</p>';
+    $("moreActs").hidden = !state.actsMore;
+  }
+  async function loadActs(more) {
+    const offset = more ? state.acts.length : 0;
+    if (!more) $("acts").innerHTML = state.acts.length ? $("acts").innerHTML : sk(3);
+    try {
+      const r = await api(`/admin/dashboard/activities?limit=${PER}&offset=${offset}`);
+      state.acts = more ? state.acts.concat(r.items) : r.items; state.actsMore = r.hasMore; renderActs();
+    } catch (e) { if (e.status !== 401) $("acts").innerHTML = failBox(errText(e), "acts"); }
+  }
+
+  /* ---------- recent transactions ---------- */
+  async function loadTx() {
+    const seq = ++state.txSeq;                                   // ignore a slow answer to an older search
+    const offset = state.txPage * PER;
+    try {
+      const r = await api(`/admin/dashboard/transactions?limit=${PER}&offset=${offset}` + (state.q ? "&q=" + encodeURIComponent(state.q) : ""));
+      if (seq !== state.txSeq) return;
+      $("txCount").textContent = state.q ? `${num(r.total)} matching transaction${r.total === 1 ? "" : "s"}` : `${num(r.total)} transaction${r.total === 1 ? "" : "s"} in total`;
+      if (!r.items.length) {
+        $("txTable").innerHTML = `<p class="ad-empty">${state.q ? "No transactions match your search." : "No transactions yet. They appear here when a driver scans a student's QR code."}</p>`;
+        $("txPager").innerHTML = ""; return;
+      }
+      $("txTable").innerHTML = `<table class="ad-table"><thead><tr><th>Reference No.</th><th>Student Name</th><th>Student ID</th><th>Driver</th><th class="num">Regular Fare</th><th class="num">Discount</th><th class="num">Final Fare</th><th>Date</th><th>Status</th><th><span class="sr-only" style="position:absolute;left:-9999px">Actions</span></th></tr></thead><tbody>${r.items.map((t) => `<tr>
+        <td data-label="Reference No." class="mono">${esc(t.reference)}</td><td data-label="Student Name">${esc(t.studentName)}</td><td data-label="Student ID" class="mono">${esc(t.schoolId)}</td><td data-label="Driver">${esc(t.driver)}</td>
+        <td data-label="Regular Fare" class="num">${money(t.regularFare)}</td><td data-label="Discount" class="num">${money(t.discountAmount)}</td><td data-label="Final Fare" class="num"><b>${money(t.finalFare)}</b></td>
+        <td data-label="Date">${esc(t.date)} ${esc(t.time)}</td><td data-label="Status">${badge(t.statusKey === "completed" ? "active" : "pending", t.status)}</td>
+        <td><button class="ad-btn" type="button" data-tx="${t.id}">View</button></td></tr>`).join("")}</tbody></table>`;
+      const pages = Math.ceil(r.total / PER);
+      $("txPager").innerHTML = `<span>Showing ${offset + 1}–${offset + r.items.length} of ${num(r.total)}</span>
+        <span class="btns"><button class="ad-btn" id="txPrev" type="button" ${state.txPage === 0 ? "disabled" : ""}>Previous</button><span>Page ${state.txPage + 1} of ${pages}</span><button class="ad-btn" id="txNext" type="button" ${state.txPage + 1 >= pages ? "disabled" : ""}>Next</button></span>`;
+    } catch (e) { if (e.status !== 401 && seq === state.txSeq) $("txTable").innerHTML = failBox(errText(e), "tx"); }
+  }
+  async function showTx(id) {
+    try {
+      const { transaction: t } = await api("/admin/dashboard/transactions/" + id);
+      const kv = (k, v) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`;
+      $("txDlg").innerHTML = `<h2 id="txDlgTitle">Transaction details</h2><p class="ad-sub mono">${esc(t.reference)}</p>
+        <dl class="ad-kv">${kv("Student", t.studentName)}${kv("Student ID", t.schoolId)}${kv("Driver", t.driver)}${kv("Route / service", t.route)}${kv("Operator", t.operator)}${kv("Verified by", t.method)}
+        ${kv("Date and time", t.date + " " + t.time)}${kv("Regular fare", money(t.regularFare))}${kv("Discount", t.discountPercent + "% (" + money(t.discountAmount) + ")")}${kv("Final fare", money(t.finalFare))}${kv("Status", t.status)}${t.reason ? kv("Note", t.reason) : ""}</dl>
+        <div class="foot"><button class="ad-btn primary" type="button" data-close>Close</button></div>`;
+      $("txDlg").showModal();
+    } catch (e) { showToast(errText(e)); }
+  }
+
+  /* ---------- wiring ---------- */
+  async function loadTop() {
+    const [s, c] = await Promise.allSettled([api("/admin/dashboard/summary"), api("/admin/dashboard/charts")]);
+    if (s.status === "fulfilled") renderStats(s.value);
+    else { $("stats").innerHTML = failBox(errText(s.reason), "top"); $("status").innerHTML = '<div class="ad-st"><span>API connection</span><span class="no">● Unavailable</span></div>'; }
+    if (c.status === "fulfilled") renderCharts(c.value);
+    else for (const id of ["cDaily", "cWeekly", "cMonthly", "cDiscount"]) $(id).innerHTML = failBox(errText(c.reason), "top");
+  }
+  async function refreshAll() {
+    $("refresh").disabled = true;
+    await Promise.all([loadTop(), loadActs(false), loadTx()]);
+    $("refresh").disabled = false;
+  }
+  document.addEventListener("click", (e) => {
+    const r = e.target.closest("[data-retry]"); if (r) { ({ top: loadTop, acts: () => loadActs(false), tx: loadTx })[r.dataset.retry](); }
+    const v = e.target.closest("[data-tx]"); if (v) showTx(v.dataset.tx);
+    if (e.target.closest("[data-close]")) $("txDlg").close();
+    if (e.target.id === "txDlg") $("txDlg").close();
+    if (e.target.id === "txPrev") { state.txPage--; loadTx(); }
+    if (e.target.id === "txNext") { state.txPage++; loadTx(); }
+  });
+  $("refresh").addEventListener("click", refreshAll);
+  $("moreActs").addEventListener("click", () => loadActs(true));
+  $("txQ").addEventListener("input", debounce(() => { state.q = $("txQ").value.trim(); state.txPage = 0; loadTx(); }, 300));
+
+  await refreshAll();
+  setInterval(() => { if (!document.hidden && !$("txDlg").open) { loadTop(); if (state.acts.length <= PER) loadActs(false); } }, 60000);
+
+})();
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

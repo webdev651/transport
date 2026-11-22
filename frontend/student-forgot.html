@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#062B59">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/auth.css">
+<link rel="stylesheet" href="css/student.css">
+<title>Forgot password · TransitPass</title>
+<meta name="description" content="Student sign in to your TransitPass discount pass.">
+<link rel="stylesheet" href="css/motion.css">
+</head>
+<body class="auth-page">
+<div class="auth-bg" aria-hidden="true"></div>
+<svg class="auth-swoosh" viewBox="0 0 640 170" fill="none" aria-hidden="true"><path d="M0 168C190 160 450 100 640 0" stroke="#F4B52B" stroke-width="7"/><path d="M60 170C240 166 470 112 640 36" stroke="#F4B52B" stroke-opacity=".45" stroke-width="3"/></svg>
+<div class="auth-wrap">
+  <div class="auth-top"><a class="back-link" href="landing.html"><svg class="ico" aria-hidden="true"><use href="#i-arrow-left"/></svg>Back to TransitPass</a></div>
+  <main class="auth-layout">
+    <section class="auth-brand" aria-label="TransitPass, Talisay City College">
+      <div class="lockup">
+        <img class="seal" src="img/tcc-seal.png" width="96" height="96" alt="Talisay City College seal">
+        <span class="lockup__rule" aria-hidden="true"></span>
+        <div class="wordmark">Transit<b>Pass</b><small>Talisay City College</small></div>
+      </div>
+      <p class="tagline">“Ride Smart. Go Further.”</p>
+      <p class="brand-lead">Your QR student pass for campus transportation: register once, get verified by the admin, then ride with your discount.</p>
+      <figure class="bus"><img src="img/tcc-bus.jpg" width="660" height="396" alt="TCC campus shuttle bus"></figure>
+    </section>
+    <section class="auth-card" aria-labelledby="authTitle">
+      <div class="auth-card__head">
+        <svg class="ico" aria-hidden="true"><use href="#i-login"/></svg>
+        <div>
+          <h1 id="authTitle">Forgot Password</h1>
+          <p>Enter your Student ID or email and we will send you a reset link.</p>
+        </div>
+      </div>
+      <div class="auth-card__body">
+        <form id="f" novalidate>
+          <p class="form-alert" id="error" role="alert"></p>
+          <p class="success-note" id="ok" role="status"></p>
+          <div class="field"><label for="idn">Student ID or Email</label><div class="input"><svg class="ico" aria-hidden="true"><use href="#i-id"/></svg><input id="idn" autocomplete="username" maxlength="190" required></div></div>
+          <button class="btn-primary" type="submit">Send reset link</button>
+          <div class="dev-link" id="dev" hidden></div>
+        </form>
+        <p class="form-foot">Remembered it? <a href="student-login.html">Back to Login</a></p>
+      </div>
+    </section>
+  </main>
+  <footer class="auth-strip"><ul>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-bus"/></svg>Talisay City College</li>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-shield"/></svg>Safe &amp; Reliable</li>
+    <li><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg>Smart Transportation</li>
+  </ul></footer>
+</div>
+<script src="js/auth-ui.js"></script>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const err = document.getElementById("error"), ok = document.getElementById("ok");
+  document.getElementById("f").addEventListener("submit", async (e) => {
+    e.preventDefault(); err.classList.remove("show"); ok.classList.remove("show");
+    const id = document.getElementById("idn").value.trim();
+    if (!id) { err.textContent = "Enter your Student ID or email."; err.classList.add("show"); return; }
+    const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
+    try {
+      const r = await api("/student-portal/forgot-password", { method: "POST", public: true, body: { identifier: id } });
+      ok.textContent = r.message; ok.classList.add("show");
+      if (r.devResetPath) { const d = document.getElementById("dev"); d.hidden = false; d.innerHTML = 'Development link: <a href="' + esc(r.devResetPath) + '">open reset page</a>'; }
+    } catch (ex) { err.textContent = errText(ex); err.classList.add("show"); }
+    btn.disabled = false;
+  });
+</script>
+<script src="js/motion.js"></script>
+</body>
+</html>

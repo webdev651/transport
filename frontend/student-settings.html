@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<template id="tpl">
+
+  <section class="sp-grid two">
+    <article class="sp-card"><h2>Account information</h2><p class="sub">Your sign-in details.</p><dl class="dl" id="acct"></dl></article>
+    <article class="sp-card"><h2>Change password</h2><p class="sub">At least 8 characters. Other devices are signed out.</p>
+      <form id="pwForm" class="form-grid" novalidate>
+        <div class="fld"><label for="p_cur">Current password</label><div class="pw"><input id="p_cur" type="password" autocomplete="current-password"><button type="button">Show</button></div></div>
+        <div class="fld"><label for="p_new">New password</label><div class="pw"><input id="p_new" type="password" autocomplete="new-password" maxlength="72"><button type="button">Show</button></div></div>
+        <div class="fld"><label for="p_con">Confirm new password</label><div class="pw"><input id="p_con" type="password" autocomplete="new-password" maxlength="72"><button type="button">Show</button></div></div>
+        <p class="err-text" id="pwErr" role="alert"></p><div class="btn-row"><button class="btn primary" type="submit">Update password</button></div></form></article>
+  </section>
+  <section class="sp-grid two">
+    <article class="sp-card"><h2>Email management</h2><p class="sub">Confirm with your password to change your email.</p>
+      <form id="emForm" class="form-grid" novalidate>
+        <div class="fld"><label for="e_new">New email address</label><input id="e_new" type="email" autocomplete="email" maxlength="190"></div>
+        <div class="fld"><label for="e_pw">Your password</label><div class="pw"><input id="e_pw" type="password" autocomplete="current-password"><button type="button">Show</button></div></div>
+        <p class="err-text" id="emErr" role="alert"></p><div class="btn-row"><button class="btn primary" type="submit">Update email</button></div></form></article>
+    <article class="sp-card"><h2>Sessions</h2><p class="sub">You are signed out automatically after 30 minutes of inactivity.</p>
+      <div class="btn-row"><button class="btn" id="allOut" type="button">Sign out of other devices</button><button class="btn danger" id="out" type="button">Log out</button></div></article>
+  </section>
+
+</template>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+
+Student.boot({ nav: "settings", eyebrow: "My account", title: "Settings", sub: "Manage your password, email and sessions." }, async () => {
+  const { S, busy, ask } = Student;
+  const $ = (id) => document.getElementById(id);
+  Student.wirePasswordToggles();
+  let st = (await S("/me/profile")).student;
+  const paint = () => { Student.paintWho(st); $("acct").innerHTML = [["Name", st.name], ["Student ID", st.schoolId], ["Email", st.email], ["Contact number", st.phone || "—"], ["Registered", fmtDate(st.createdAt)]].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join(""); };
+  paint();
+  const saveToken = (t) => t && setToken("student", t);
+
+  $("pwForm").addEventListener("submit", (e) => { e.preventDefault(); const err = $("pwErr"); err.textContent = "";
+    const cur = $("p_cur").value, nw = $("p_new").value, con = $("p_con").value;
+    if (!cur) return (err.textContent = "Enter your current password.");
+    if (nw.length < 8) return (err.textContent = "New password must be at least 8 characters.");
+    if (nw !== con) return (err.textContent = "New passwords do not match.");
+    busy(e.submitter, async () => { try { const r = await S("/me/password", { method: "POST", body: { current: cur, new: nw, confirm: con } }); saveToken(r.token); e.target.reset(); showToast("Password updated."); } catch (x) { err.textContent = errText(x); } });
+  });
+  $("emForm").addEventListener("submit", (e) => { e.preventDefault(); const err = $("emErr"); err.textContent = "";
+    const email = $("e_new").value.trim(), pw = $("e_pw").value;
+    if (!/^\S+@\S+\.\S+$/.test(email)) return (err.textContent = "Enter a valid email address.");
+    if (!pw) return (err.textContent = "Enter your password to confirm.");
+    busy(e.submitter, async () => { try { st = (await S("/me/email", { method: "POST", body: { email, password: pw } })).student; paint(); e.target.reset(); showToast("Email updated."); } catch (x) { err.textContent = errText(x); } });
+  });
+  $("allOut").onclick = async (e) => { if (!(await ask("Sign out other devices?", "Every other phone or computer signed in to your account will be signed out. This device stays signed in.", { yes: "Sign them out" }))) return;
+    busy(e.target, async () => { const r = await S("/me/sessions/revoke-all", { method: "POST" }); saveToken(r.token); showToast("Other devices were signed out."); }); };
+  $("out").onclick = () => logoutStudent();
+});
+
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

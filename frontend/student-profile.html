@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Profile · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<template id="tpl">
+
+  <section class="sp-card"><div class="hd"><div><h2>Profile photo</h2><p class="sub" style="margin:0">Shown on your dashboard.</p></div></div>
+    <div class="who-card" id="photoRow"></div></section>
+  <section class="sp-grid two">
+    <article class="sp-card"><h2>Personal information</h2><p class="sub">You can update your contact number here.</p>
+      <form id="infoForm" class="form-grid" novalidate>
+        <div class="fld"><label>Full name</label><input id="f_name" readonly></div>
+        <div class="fld"><label>Student ID</label><input id="f_sid" readonly></div>
+        <div class="fld"><label>Email</label><input id="f_email" readonly><span class="sub" style="margin:0;font-size:.75rem">Change it in <a href="student-settings.html"><u>Settings</u></a>.</span></div>
+        <div class="fld"><label for="f_phone">Contact number</label><input id="f_phone" type="tel" maxlength="40" autocomplete="tel"><span class="err" id="e_phone" role="alert"></span></div>
+        <div class="btn-row"><button class="btn primary" type="submit">Save contact number</button></div>
+      </form></article>
+    <article class="sp-card"><div class="hd"><div><h2>Enrollment information</h2><p class="sub" style="margin:0">Changes are reviewed by the registrar.</p></div><button class="btn" id="btnCorrect" type="button">Request a correction</button></div>
+      <dl class="dl" id="enroll"></dl></article>
+  </section>
+  <section class="sp-grid two">
+    <article class="sp-card"><h2>My documents</h2><p class="sub">The files you submitted for verification.</p><div id="docs"></div></article>
+    <article class="sp-card"><h2>Correction requests</h2><p class="sub">Your information correction requests and their status.</p><div id="reqs"></div></article>
+  </section>
+
+</template>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+
+Student.boot({ nav: "profile", eyebrow: "My account", title: "My Profile", sub: "View your details, update your contact information and ask for corrections." }, async () => {
+  const { S, avatar, empty, busy, reqBadge, regBadge } = Student;
+  let st, reqs, reviews = {};
+  const $ = (id) => document.getElementById(id);
+
+  const docLine = (has, r) => !has ? "Not submitted" : !r || r.status === "pending" ? "Submitted · waiting for the registrar to check it"
+    : r.status === "verified" ? "Submitted · verified by the registrar" : `Not accepted${r.reason ? ": " + esc(r.reason) : ""}. Upload a new file below.`;
+  function paint() {
+    Student.paintWho(st);
+    $("photoRow").innerHTML = `${avatar(st)}<div><p class="meta" style="margin:0 0 .5rem">JPG, PNG or WEBP. It is resized in your browser before upload.</p>
+      <div class="btn-row"><label class="btn blue" for="photoIn" style="margin:0">Change photo</label><input id="photoIn" type="file" accept="image/jpeg,image/png,image/webp" hidden></div></div>`;
+    $("f_name").value = st.name; $("f_sid").value = st.schoolId; $("f_email").value = st.email; $("f_phone").value = st.phone;
+    $("enroll").innerHTML = [["Registration", regBadge(st.registration)], ["School", esc(st.school)], ["Campus", esc(st.campus)], ["Course", esc(st.course)], ["Year level", esc(st.yearLevel)], ["Section", esc(st.section)], ["Registered", esc(fmtDate(st.createdAt))]]
+      .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    const locked = st.registration.status === "approved";
+    $("docs").innerHTML = `<div class="list-row"><div><p class="t">Student ID document</p><p class="s">${docLine(st.documents.idDocument, reviews.id)}</p></div><div class="r">${st.documents.idDocument ? '<button class="link-btn" data-view="id">View</button>' : ""}</div></div>
+      <div class="list-row"><div><p class="t">Enrollment document</p><p class="s">${docLine(st.documents.enrollmentDocument, reviews.enrollment)}</p></div><div class="r">${st.documents.enrollmentDocument ? '<button class="link-btn" data-view="enrollment">View</button>' : ""}</div></div>
+      ${locked ? '<p class="sub" style="margin-top:.8rem">Your registration is approved, so the documents are locked. Send a correction request if something is wrong.</p>' : `
+      <form id="docForm" class="form-grid" style="margin-top:1rem" novalidate>
+        <div class="fld"><label for="d_id">Replace student ID document</label><input id="d_id" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+        <div class="fld"><label for="d_enr">Replace enrollment document</label><input id="d_enr" type="file" accept=".pdf,.jpg,.jpeg,.png"></div>
+        <div class="btn-row"><button class="btn primary" type="submit">Upload documents</button></div></form>`}`;
+    $("reqs").innerHTML = reqs.length ? reqs.map((r) => `<div class="list-row"><div><p class="t">${esc(r.fieldLabel || r.typeLabel)}: ${esc(r.currentValue)} → ${esc(r.requestedValue)}</p><p class="s">${esc(r.reason || "")}<br>${esc(fmtDateTime(r.createdAt))}${r.adminNote ? "<br>Registrar: " + esc(r.adminNote) : ""}</p></div>
+      <div class="r">${reqBadge(r)}${r.status === "pending" ? `<p><button class="link-btn" data-cancel="${r.id}">Cancel</button></p>` : ""}</div></div>`).join("") : empty("No requests", "Use “Request a correction” if any enrollment detail is wrong.");
+  }
+  async function load() { const r = await S("/me/profile"); st = r.student; reqs = r.requests; reviews = r.documentReviews || {}; paint(); }
+  await load();
+
+  $("infoForm").addEventListener("submit", (e) => { e.preventDefault(); busy(e.submitter, async () => {
+    $("e_phone").textContent = "";
+    const phone = $("f_phone").value.trim();
+    if (!/^[0-9+()\-\s]{7,40}$/.test(phone)) { $("e_phone").textContent = "Enter a valid contact number (digits, spaces, + - ( ) only)."; return; }
+    st = (await S("/me/profile", { method: "PATCH", body: { phone } })).student; paint(); showToast("Contact number saved.");
+  }); });
+
+  document.addEventListener("change", (e) => {
+    if (e.target.id !== "photoIn" || !e.target.files[0]) return;
+    busy(null, async () => {
+      try {
+        const blob = await Student.resizePhoto(e.target.files[0]);
+        const fd = new FormData(); fd.append("photo", blob, "photo.jpg");
+        st = (await S("/me/photo", { method: "POST", body: fd })).student; paint(); showToast("Profile photo updated.");
+      } catch (ex) { showToast(errText(ex)); }
+    });
+  });
+
+  document.addEventListener("submit", (e) => {
+    if (e.target.id !== "docForm") return; e.preventDefault();
+    const idf = $("d_id").files[0], enr = $("d_enr").files[0];
+    if (!idf && !enr) return showToast("Choose a file to upload.");
+    for (const f of [idf, enr]) if (f && f.size > 5 * 1024 * 1024) return showToast("Each file must be 5 MB or smaller.");
+    busy(e.submitter, async () => {
+      const fd = new FormData(); if (idf) fd.append("idDocument", idf); if (enr) fd.append("enrollmentDocument", enr);
+      st = (await S("/me/documents", { method: "POST", body: fd })).student; await load(); showToast("Documents uploaded.");
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    const v = e.target.closest("[data-view]"); if (v) return Student.viewDocument(v.dataset.view);
+    const c = e.target.closest("[data-cancel]");
+    if (c) busy(c, async () => { await S(`/me/requests/${c.dataset.cancel}/cancel`, { method: "POST" }); await load(); showToast("Request cancelled."); });
+  });
+
+  $("btnCorrect").addEventListener("click", () => Student.formDialog({
+    title: "Request an information correction", sub: "The registrar will review it. Your details change only after approval.", submit: "Send request",
+    fields: [
+      { name: "field", label: "What needs to be corrected?", type: "select", options: [["name", "Full name"], ["schoolId", "Student ID"], ["school", "School"], ["campus", "Campus"], ["program", "Course"], ["level", "Year level"], ["section", "Section"]] },
+      { name: "value", label: "Correct value", placeholder: "Type the correct information" },
+      { name: "reason", label: "Why is it wrong?", type: "textarea", placeholder: "Short explanation for the registrar" }],
+    onSubmit: async (v) => { await S("/me/requests", { method: "POST", body: { type: "correction", ...v } }); await load(); showToast("Request sent to the registrar."); }
+  }));
+});
+
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

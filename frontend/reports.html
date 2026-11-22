@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reports & Subsidy Ledger · TransitPass</title>
+<meta name="description" content="Management reporting for the student transportation discount program: weekly verification volume, denial rates and operator subsidy reimbursement summaries.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav">
+      <a href="admin-dashboard.html">Dashboard</a>
+      <a href="verify.html">Verify Pass</a>
+      <a href="students.html">Student Registry</a>
+      <a href="admin-scan-history.html">Scan History</a>
+      <a href="reports.html">Reports</a>
+      <a href="admin-account.html">My Account</a>
+    </nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">Driver</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem">verification.node-04</p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent)">QR Code-Based Verification & Management System</p>
+      <h1>Reports & Subsidy Ledger</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Weekly verification volume and operator reimbursement summaries for program auditing.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div class="section-title"><h2 style="font-size:1.05rem">Weekly verification volume</h2><span class="label-caps muted">granted vs denied</span></div>
+        <div class="chart" id="chart"></div>
+      </article>
+      <article class="card">
+        <div class="section-title"><h2 style="font-size:1.05rem">Operator reimbursement</h2><span class="label-caps muted">current cycle</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Operator</th><th>Discounted trips</th><th>Subsidy claim</th><th>Status</th></tr></thead>
+            <tbody id="ops"></tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const [{ days }, { items: operators }] = await Promise.all([api("/reports/weekly"), api("/operators")]);
+  const max = Math.max(1, ...days.map((w) => Math.max(w.granted, w.denied + w.review)));
+  document.getElementById("chart").innerHTML = days.map((w) => `<div class="bar-col">
+      <span class="mono muted" style="font-size:.68rem">${w.granted}</span>
+      <div class="bar" style="height:${(w.granted / max) * 82}%"></div>
+      <div class="bar deny" style="height:${((w.denied + w.review) / max) * 82}%"></div>
+      <span class="label-caps muted">${esc(w.day)}</span>
+    </div>`).join("");
+  document.getElementById("ops").innerHTML = operators.length ? operators.map((o) => `<tr>
+      <td><strong>${esc(o.name)}</strong></td><td class="mono">${esc(o.trips)}</td>
+      <td class="mono">${esc(o.discount)}</td>
+      <td>${badge(o.status === "Cleared" ? "granted" : o.status === "For review" ? "review" : "pending")} <span class="muted" style="font-size:.78rem">${esc(o.status)}</span></td>
+    </tr>`).join("") : `<tr><td colspan="4" class="muted">No operators recorded.</td></tr>`;
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

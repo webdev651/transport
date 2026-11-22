@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notifications · TransitPass</title>
+<meta name="description" content="Send messages to students and drivers, see every notification that was sent, whether it was delivered, and whether it has been read.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Notifications</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Send messages to students and drivers, see every notification that was sent, whether it was delivered, and whether it has been read.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-stats" id="stats"></div>
+      <article class="card">
+        <div class="am-bar">
+          <div class="grow"><input id="q" placeholder="Search recipient, title or message" maxlength="60" aria-label="Search notifications"></div>
+          <div style="width:140px"><select id="rt" aria-label="Recipient"><option value="all">Everyone</option><option value="student">Students</option><option value="driver">Drivers</option></select></div>
+          <div style="width:190px"><select id="ca" aria-label="Category"><option value="all">All categories</option><option value="account_status">Account status</option><option value="eligibility_expiry">Eligibility expiration</option><option value="qr_expiry">QR code expiration</option><option value="announcement">Announcement</option><option value="refund">Refund / transaction</option><option value="general">General</option></select></div>
+          <div style="width:130px"><select id="rd" aria-label="Read status"><option value="all">Read &amp; unread</option><option value="unread">Unread</option><option value="read">Read</option></select></div>
+          <div style="width:140px"><select id="dl" aria-label="Delivery"><option value="all">Any delivery</option><option value="delivered">Delivered</option><option value="failed">Failed</option></select></div>
+        </div>
+        <div class="am-bar"><button class="primary" id="sendBtn">Send notification</button><button id="genBtn">Generate expiry reminders</button><span class="muted" style="font-size:.78rem">Reminders for QR codes, student discounts and driver documents that are about to expire are never sent twice.</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Sent</th><th>Recipient</th><th>Category</th><th>Message</th><th>Delivery</th><th>Read</th><th>Sent by</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="am-pager" id="pager"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  const loadStats = async () => { const s = await api("/admin/notifications/stats"); AM.stats($("stats"), [{ label: "Notifications", value: s.total }, { label: "To students", value: s.students }, { label: "To drivers", value: s.drivers }, { label: "Unread", value: s.unread }, { label: "Failed", value: s.failed }]); };
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/notifications", empty: "No notifications match this filter.", limit: 30,
+    params: () => ({ q: $("q").value.trim(), recipientType: $("rt").value, category: $("ca").value, read: $("rd").value, delivery: $("dl").value }),
+    row: (n) => `<tr><td class="mono" style="font-size:.78rem">${esc(AM.dt(n.createdAt))}</td><td><strong>${esc(n.recipient)}</strong><br><span class="muted" style="font-size:.74rem">${esc(AM.label(n.recipientType))}</span></td><td>${esc(AM.label(n.category))}</td>
+      <td style="max-width:22rem"><strong style="font-size:.84rem">${esc(n.title)}</strong><br><span class="muted" style="font-size:.78rem">${esc(n.body.length > 120 ? n.body.slice(0, 120) + "…" : n.body)}</span></td><td>${AM.badge(n.delivery)}<br><span class="muted" style="font-size:.7rem">${esc(n.channel)}</span></td><td>${AM.badge(n.read ? "read" : "unread")}</td><td style="font-size:.8rem">${esc(n.sentBy)}</td></tr>`
+  });
+  $("sendBtn").onclick = async () => {
+    const drivers = await AM.personOptions("driver");
+    await AM.form({ title: "Send notification", wide: true, submit: "Send", intro: "Students receive it in their portal inbox (and by email when email delivery is configured). Drivers receive it in their notification inbox.",
+      fields: [{ name: "audience", label: "Send to", type: "select", required: true, options: [["students", "All students"], ["drivers", "All active drivers"], ["one_student", "One student (by School ID)"], ["one_driver", "One driver"]] },
+        { name: "schoolId", label: "Student School ID (for “One student”)", maxlength: 32 }, { name: "driverId", label: "Driver (for “One driver”)", type: "select", options: drivers.map((d) => [d.id, d.name]) },
+        { name: "category", label: "Category", type: "select", options: [["general", "General"], ["account_status", "Account status"], ["eligibility_expiry", "Eligibility expiration"], ["qr_expiry", "QR code expiration"]] },
+        { name: "title", label: "Title", required: true, maxlength: 200 }, { name: "body", label: "Message", type: "textarea", required: true, maxlength: 2000 }],
+      onSubmit: async (v) => {
+        const body = { category: v.category, title: v.title, body: v.body };
+        if (v.audience === "one_student") {
+          if (!v.schoolId.trim()) throw new Error("Enter the student’s School ID.");
+          const r = await api(`/students?limit=10&q=${encodeURIComponent(v.schoolId.trim())}`);
+          const s = r.items.find((x) => x.schoolId.toLowerCase() === v.schoolId.trim().toLowerCase()); if (!s) throw new Error("No student has that School ID.");
+          Object.assign(body, { audience: "selected_students", studentIds: [s.id] });
+        } else if (v.audience === "one_driver") { if (!v.driverId) throw new Error("Choose a driver."); Object.assign(body, { audience: "selected_drivers", driverIds: [Number(v.driverId)] }); }
+        else body.audience = v.audience;
+        const r = await api("/admin/notifications", { method: "POST", body }); showToast(`Sent to ${r.sent} recipient(s).`);
+      } });
+    list.load(true); loadStats();
+  };
+  $("genBtn").onclick = (e) => AM.act(e.currentTarget, async () => { const r = await api("/admin/notifications/generate", { method: "POST" }); showToast(`Created ${r.qrExpiry} QR code, ${r.eligibilityExpiry} eligibility and ${r.driverDocuments} driver document reminder(s).`); list.load(true); loadStats(); });
+  $("q").addEventListener("input", debounce(() => list.load(true))); ["rt", "ca", "rd", "dl"].forEach((id) => $(id).addEventListener("change", () => list.load(true)));
+  list.load(); loadStats().catch((e) => showToast(errText(e)));
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

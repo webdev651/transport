@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drivers · TransitPass</title>
+<meta name="description" content="Register drivers, approve and deactivate their accounts, and reset passwords. Each driver signs in with their own credentials.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Driver Accounts</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Register drivers, approve and deactivate their accounts, and reset passwords. Each driver signs in with their own credentials.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div class="row" style="margin-bottom:1rem">
+          <div style="flex:1;min-width:220px"><input id="q" placeholder="Search name, username, email or unit" maxlength="60" aria-label="Search drivers"></div>
+          <div style="width:160px"><select id="status" aria-label="Filter by status"><option value="all">All statuses</option><option value="active">Active</option><option value="pending">Pending</option><option value="inactive">Inactive</option></select></div>
+          <button class="primary" id="addBtn">Register driver</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Driver</th><th>Username</th><th>Unit</th><th>Status</th><th>Scans</th><th>Last sign-in</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <p class="muted" id="empty" hidden style="font-size:.85rem;margin-top:.75rem">No drivers yet. Use “Register driver”.</p>
+      </article>
+      <dialog class="tp-dialog" id="dlg">
+        <h2 id="dlgTitle" style="margin:0;font-size:1.1rem">Register driver</h2>
+        <label class="label-caps muted" for="fName">Full name</label><input id="fName" maxlength="120" autocomplete="off">
+        <label class="label-caps muted" for="fUser">Username</label><input id="fUser" maxlength="60" autocomplete="off">
+        <label class="label-caps muted" for="fEmail">Email</label><input id="fEmail" type="email" maxlength="190" autocomplete="off">
+        <label class="label-caps muted" for="fPhone">Phone (optional)</label><input id="fPhone" maxlength="40" autocomplete="off">
+        <label class="label-caps muted" for="fUnit">Vehicle / unit (optional)</label><input id="fUnit" maxlength="60" autocomplete="off">
+        <div id="pwWrap"><label class="label-caps muted" for="fPass" id="fPassLabel">Temporary password (min 8 characters)</label><input id="fPass" type="password" maxlength="72" autocomplete="new-password"></div>
+        <div id="stWrap"><label class="label-caps muted" for="fStatus">Account status</label><select id="fStatus"><option value="active">Active (can sign in now)</option><option value="pending">Pending (approve later)</option></select></div>
+        <p class="err-text" id="dlgErr"></p>
+        <div class="row"><button id="dlgCancel" type="button">Cancel</button><button class="primary" id="dlgOk" type="button">Save</button></div>
+      </dialog>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+
+  const tbody = document.getElementById("rows"), dlg = document.getElementById("dlg");
+  let list = [], editing = null, resetting = null;
+  async function load() {
+    const q = document.getElementById("q").value.trim(), status = document.getElementById("status").value;
+    list = (await api(`/admin/drivers?limit=100&status=${status}${q ? "&q=" + encodeURIComponent(q) : ""}`)).items;
+    document.getElementById("empty").hidden = list.length > 0;
+    tbody.innerHTML = list.map((d) => {
+      const acts = [];
+      if (d.status === "pending") acts.push(`<button class="primary" data-a="approve" data-id="${d.id}">Approve</button>`);
+      if (d.status === "inactive") acts.push(`<button class="primary" data-a="activate" data-id="${d.id}">Activate</button>`);
+      if (d.status !== "inactive") acts.push(`<button data-a="deactivate" data-id="${d.id}">Deactivate</button>`);
+      acts.push(`<button data-a="edit" data-id="${d.id}">Edit</button>`, `<button data-a="password" data-id="${d.id}">Reset password</button>`);
+      return `<tr><td><strong>${esc(d.name)}</strong><br><span class="muted" style="font-size:.75rem">${esc(d.email)}${d.phone ? " · " + esc(d.phone) : ""}</span></td>
+        <td class="mono">${esc(d.username)}</td><td>${esc(d.unit || "—")}</td><td>${badge(d.status === "active" ? "active" : d.status === "pending" ? "pending" : "inactive", d.status)}</td>
+        <td class="mono">${d.scanCount}</td><td class="mono" style="font-size:.78rem">${esc(fmtDateTime(d.lastLoginAt))}</td>
+        <td style="white-space:nowrap;display:flex;gap:.35rem;flex-wrap:wrap">${acts.join("")}</td></tr>`;
+    }).join("");
+  }
+  const f = (id) => document.getElementById(id);
+  function openForm(d) {
+    editing = d; resetting = null;
+    f("dlgTitle").textContent = d ? `Edit ${d.name}` : "Register driver";
+    f("fName").value = d ? d.name : ""; f("fUser").value = d ? d.username : ""; f("fEmail").value = d ? d.email : "";
+    f("fPhone").value = d && d.phone ? d.phone : ""; f("fUnit").value = d && d.unit ? d.unit : ""; f("fPass").value = "";
+    f("pwWrap").hidden = !!d; f("stWrap").hidden = !!d; f("dlgErr").textContent = ""; f("dlg").showModal();
+    f("fName").focus();
+    [...document.querySelectorAll("#dlg > label, #dlg > input")].forEach((el) => { el.hidden = false; });
+  }
+  function openReset(d) {
+    resetting = d; editing = null;
+    f("dlgTitle").textContent = `Reset password · ${d.name}`;
+    [...document.querySelectorAll("#dlg > label, #dlg > input")].forEach((el) => { el.hidden = true; });
+    f("pwWrap").hidden = false; f("stWrap").hidden = true; f("fPassLabel").textContent = "New password (min 8 characters). The driver is signed out everywhere.";
+    f("fPass").value = ""; f("dlgErr").textContent = ""; f("dlg").showModal(); f("fPass").focus();
+  }
+  f("addBtn").onclick = () => { f("fPassLabel").textContent = "Temporary password (min 8 characters)"; openForm(null); };
+  f("dlgCancel").onclick = () => dlg.close();
+  f("dlgOk").onclick = async () => {
+    f("dlgErr").textContent = "";
+    try {
+      if (resetting) {
+        await api(`/admin/drivers/${resetting.id}/password`, { method: "POST", body: { password: f("fPass").value } });
+        showToast("Password reset.");
+      } else if (editing) {
+        await api(`/admin/drivers/${editing.id}`, { method: "PATCH", body: { name: f("fName").value, username: f("fUser").value, email: f("fEmail").value, phone: f("fPhone").value, unit: f("fUnit").value } });
+        showToast("Driver updated.");
+      } else {
+        await api("/admin/drivers", { method: "POST", body: { name: f("fName").value, username: f("fUser").value, email: f("fEmail").value,
+          phone: f("fPhone").value || undefined, unit: f("fUnit").value || undefined, password: f("fPass").value, status: f("fStatus").value } });
+        showToast("Driver registered.");
+      }
+      dlg.close(); await load();
+    } catch (e) { f("dlgErr").textContent = errText(e); }
+  };
+  tbody.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const d = list.find((x) => String(x.id) === b.dataset.id);
+    if (b.dataset.a === "edit") return openForm(d);
+    if (b.dataset.a === "password") return openReset(d);
+    if (b.dataset.a === "deactivate" && !confirm(`Deactivate ${d.name}? They are signed out immediately.`)) return;
+    await guarded(b, async () => { await api(`/admin/drivers/${d.id}/actions/${b.dataset.a}`, { method: "POST" }); showToast(`${d.name}: ${b.dataset.a}d.`.replace("approved", "approved")); await load(); });
+  });
+  f("q").addEventListener("input", debounce(() => load().catch((e) => showToast(errText(e)))));
+  f("status").addEventListener("change", () => load().catch((e) => showToast(errText(e))));
+  await load();
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reports and Analytics · TransitPass</title>
+<meta name="description" content="Transactions, student registrations, driver activity, fare collections, discount utilization and cancelled or refunded transactions, with daily, weekly, monthly and custom ranges, charts, CSV export and PDF printing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+<style>
+.rp-ch{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr));margin:1rem 0}
+.rp-ch figure{margin:0;border:1px solid var(--border);border-radius:.6rem;padding:.75rem}
+.rp-ch figcaption{font-size:.8rem;font-weight:600;margin-bottom:.4rem}
+.rp-ch svg{width:100%;height:auto;display:block}
+.rp-leg{display:flex;gap:.9rem;flex-wrap:wrap;font-size:.72rem;margin-top:.3rem}
+.rp-leg i{display:inline-block;width:.7rem;height:.7rem;border-radius:2px;margin-right:.3rem;vertical-align:-1px}
+td.n,th.n{text-align:right;white-space:nowrap}
+tr.rp-total td{font-weight:700;background:rgba(7,91,219,.06)}
+#reportArea{display:none}
+@page{size:A4 landscape;margin:12mm}
+@media print{
+  body.print-report .shell,body.print-report .toast,body.print-report dialog{display:none!important}
+  body.print-report #reportArea{display:block;color:#000;background:#fff;font-family:"DM Sans",Arial,sans-serif;font-size:9pt}
+  body.print-report{background:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+#reportArea h1{font-size:15pt;margin:0 0 .2rem}
+#reportArea h2{font-size:11pt;margin:.8rem 0 .2rem}
+#reportArea p{margin:.15rem 0;font-size:9pt}
+#reportArea table{width:100%;min-width:0;border-collapse:collapse;margin:.5rem 0;font-size:8pt}
+#reportArea th,#reportArea td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}
+#reportArea th{background:#e8edf5}
+#reportArea td.n,#reportArea th.n{text-align:right;white-space:nowrap}
+#reportArea tr{break-inside:avoid}
+#reportArea thead{display:table-header-group}
+#reportArea .rp-ch{display:flex;gap:.6rem;margin:.4rem 0}
+#reportArea .rp-ch figure{flex:1;border:1px solid #bbb;padding:.3rem;break-inside:avoid}
+#reportArea .rp-cards{display:flex;gap:.5rem;margin:.4rem 0}
+#reportArea .rp-cards div{flex:1;border:1px solid #999;padding:4px 6px}
+#reportArea tr.rp-total td{font-weight:700}
+</style>
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Reports and Analytics</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:46rem;font-size:.875rem">Transactions, student registrations, driver activity, fare collections, discount utilization and cancelled or refunded transactions, with daily, weekly, monthly and custom ranges, charts, CSV export and PDF printing.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div class="am-bar" style="margin-bottom:.5rem">
+          <div style="width:150px"><label for="period" style="font-size:.7rem">Period</label><select id="period"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly" selected>Monthly</option><option value="custom">Custom range</option></select></div>
+          <div style="width:160px" id="dateBox"><label for="date" style="font-size:.7rem">Date</label><input id="date" type="date"></div>
+          <div style="width:160px" id="fromBox" hidden><label for="from" style="font-size:.7rem">From</label><input id="from" type="date"></div>
+          <div style="width:160px" id="toBox" hidden><label for="to" style="font-size:.7rem">To</label><input id="to" type="date"></div>
+          <div style="align-self:flex-end"><button type="button" class="primary" id="apply">Apply</button></div>
+        </div>
+        <p class="muted" id="rangeLabel" style="font-size:.8rem;margin:0"></p>
+        <p class="err-text" id="err" role="alert"></p>
+      </article>
+      <section class="am-stats" id="overview"></section>
+      <article class="card">
+        <div id="tabs"></div>
+        <div class="am-bar"><div class="grow"><strong id="repTitle"></strong></div><div class="am-actions"><button type="button" id="csv">Export CSV</button><button type="button" id="pdf">Download PDF</button><button type="button" class="primary" id="print">Print / Save as PDF</button></div></div>
+        <div id="repNote"></div>
+        <section class="am-stats" id="cards"></section>
+        <div class="rp-ch" id="charts"></div>
+        <div class="table-wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+        <p class="muted" id="more" style="font-size:.78rem"></p>
+      </article>
+      <div class="am-note">Revenue and discounts count <strong>completed</strong> transactions only. Cancelled and refunded transactions are listed separately and never counted as collected. For the operator subsidy ledger open <a href="reports.html">the existing ledger report</a>.</div>
+    </div>
+  </main>
+</div>
+<div id="reportArea"></div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+  const COLORS = ["#075bdb", "#e0701a", "#18a058", "#8b5cf6"];
+  const TABS = [["transactions", "Transactions"], ["students", "Student registrations"], ["drivers", "Driver activities"], ["fares", "Fare collections"], ["discounts", "Discount utilization"], ["cancelled-refunded", "Cancelled & refunded"]];
+  let current = "transactions", last = null;
+  $("date").value = AM.today();
+
+  const params = () => ({ period: $("period").value, date: $("date").value, from: $("from").value, to: $("to").value });
+  const qs = (extra) => AM.q({ ...params(), ...(extra || {}) });
+  const syncBoxes = () => { const c = $("period").value === "custom"; $("dateBox").hidden = c; $("fromBox").hidden = !c; $("toBox").hidden = !c; };
+
+  const fmt = (v, t) => v === null || v === undefined || v === "" ? "—" : t === "money" ? AM.money(v) : t === "pct" ? Number(v).toFixed(2) + "%" : t === "int" ? Number(v).toLocaleString("en-US") : String(v);
+  const cell = (c, v) => `<td class="${c.type === "text" ? "" : "n"}">${esc(fmt(v, c.type))}</td>`;
+
+  /* ----- charts: plain SVG, no library ----- */
+  function chart(c) {
+    const W = 520, H = 220, L = 44, R = 10, T = 10, B = 40, n = c.x.length;
+    const all = c.series.flatMap((s) => s.values), max = Math.max(1, ...all);
+    const nice = (() => { const p = Math.pow(10, Math.floor(Math.log10(max))); const m = max / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; })();
+    const iw = W - L - R, ih = H - T - B, y = (v) => T + ih - (v / nice) * ih;
+    let g = "";
+    for (let i = 0; i <= 4; i++) { const v = (nice / 4) * i, yy = y(v); g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#cbd5e1" stroke-width=".6"/><text x="${L - 4}" y="${yy + 3}" font-size="9" text-anchor="end" fill="#64748b">${esc(nice >= 10 ? Math.round(v) : v.toFixed(1))}</text>`; }
+    const slot = iw / n, step = Math.max(1, Math.ceil(n / 12));
+    c.x.forEach((l, i) => { if (i % step === 0) g += `<text x="${L + slot * i + slot / 2}" y="${H - B + 13}" font-size="9" text-anchor="middle" fill="#64748b">${esc(String(l).length > 12 ? String(l).slice(0, 11) + "…" : l)}</text>`; });
+    if (c.kind === "line") {
+      c.series.forEach((s, k) => {
+        const pts = s.values.map((v, i) => `${L + slot * i + slot / 2},${y(v)}`).join(" ");
+        g += `<polyline fill="none" stroke="${COLORS[k % 4]}" stroke-width="2" points="${pts}"/>` + s.values.map((v, i) => `<circle cx="${L + slot * i + slot / 2}" cy="${y(v)}" r="2.2" fill="${COLORS[k % 4]}"><title>${esc(c.x[i])}: ${esc(String(v))}</title></circle>`).join("");
+      });
+    } else {
+      const m = c.series.length, bw = Math.max(2, Math.min(34, (slot * 0.8) / m));
+      c.series.forEach((s, k) => s.values.forEach((v, i) => { const x = L + slot * i + slot / 2 - (bw * m) / 2 + bw * k, h = (v / nice) * ih; g += `<rect x="${x}" y="${y(v)}" width="${bw}" height="${Math.max(0, h)}" fill="${COLORS[k % 4]}"><title>${esc(c.x[i])}: ${esc(String(v))}</title></rect>`; }));
+    }
+    const hasData = all.some((v) => v > 0);
+    const leg = c.series.length > 1 ? `<div class="rp-leg">${c.series.map((s, k) => `<span><i style="background:${COLORS[k % 4]}"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
+    return `<figure><figcaption>${esc(c.title)}</figcaption><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(c.title)}">${g}${hasData ? "" : `<text x="${W / 2}" y="${H / 2 - 10}" text-anchor="middle" font-size="11" fill="#64748b">No data in this period</text>`}</svg>${leg}</figure>`;
+  }
+  const tableHtml = (t) => `<thead><tr>${t.columns.map((c) => `<th class="${c.type === "text" ? "" : "n"}">${esc(c.header)}</th>`).join("")}</tr></thead><tbody>${
+    t.rows.map((r) => `<tr>${t.columns.map((c) => cell(c, r[c.key])).join("")}</tr>`).join("") || `<tr><td colspan="${t.columns.length}"><div class="am-state">No records in this period.</div></td></tr>`}${
+    t.totals ? `<tr class="rp-total">${t.columns.map((c, i) => i === 0 ? `<td>TOTAL (${esc(t.totals.label)})</td>` : t.totals[c.key] === undefined ? "<td></td>" : cell(c, t.totals[c.key])).join("")}</tr>` : ""}</tbody>`;
+
+  function rangeText(r) { return r.days === 1 ? r.from : r.from + " to " + r.to; }
+  function check() {
+    $("err").textContent = "";
+    if ($("period").value === "custom") {
+      if (!$("from").value || !$("to").value) { $("err").textContent = "Choose both a start date and an end date."; return false; }
+      if ($("from").value > $("to").value) { $("err").textContent = "The start date must not be after the end date."; return false; }
+    } else if (!$("date").value) { $("err").textContent = "Choose a date."; return false; }
+    return true;
+  }
+
+  async function loadOverview() {
+    try { const o = await api("/admin/reports/overview?" + qs()); $("rangeLabel").textContent = "Showing " + o.range.period + " report for " + rangeText(o.range) + "."; AM.stats($("overview"), o.cards); }
+    catch (e) { $("overview").innerHTML = ""; $("err").textContent = errText(e); }
+  }
+  async function loadReport() {
+    AM.state($("tbody"), "loading"); $("thead").innerHTML = ""; $("cards").innerHTML = ""; $("charts").innerHTML = ""; $("more").textContent = ""; $("repNote").innerHTML = "";
+    try {
+      const d = await api(`/admin/reports/${current}?` + qs());
+      last = d;
+      $("repTitle").textContent = d.title + " · " + rangeText(d.range);
+      AM.stats($("cards"), d.cards);
+      $("charts").innerHTML = d.charts.map(chart).join("");
+      $("repNote").innerHTML = d.note ? `<div class="am-note">${esc(d.note)}</div>` : "";
+      $("thead").innerHTML = ""; $("tbody").innerHTML = ""; const html = tableHtml(d.table); const tmp = document.createElement("table"); tmp.innerHTML = html;
+      $("thead").innerHTML = tmp.querySelector("thead").innerHTML; $("tbody").innerHTML = tmp.querySelector("tbody").innerHTML;
+      $("more").textContent = d.table.truncated ? `Showing the first ${d.table.rows.length} of ${d.table.total} rows. Export CSV or print for the full list.` : (d.table.total ? d.table.total + " row(s)." : "");
+    } catch (e) { last = null; AM.state($("tbody"), "error", errText(e)); }
+  }
+  function apply() { if (!check()) return; loadOverview(); loadReport(); }
+
+  $("period").addEventListener("change", () => { syncBoxes(); if ($("period").value !== "custom") apply(); });
+  $("apply").addEventListener("click", apply);
+  $("date").addEventListener("change", apply);
+  $("csv").addEventListener("click", async () => { if (!check()) return; await AM.download(`/admin/reports/${current}/export.csv?` + qs(), `transitpass-${current}.csv`); });
+  $("pdf").addEventListener("click", async () => { if (!check()) return; const btn = $("pdf"); btn.disabled = true; try { const res = await fetch(API_BASE + `/admin/reports/${current}/export.pdf?` + qs(), { headers: { Authorization: "Bearer " + getToken("staff") } }); if (!res.ok) { let m = "PDF export failed."; try { m = (await res.json()).error || m; } catch (e) {} throw new Error(m); } const blob = await res.blob(); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); const d = new Date(); a.download = `transitpass-${current}-${d.getFullYear()}${(d.getMonth()+1).toString().padStart(2,'0')}${d.getDate().toString().padStart(2,'0')}.pdf`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href); } catch (x) { showToast(errText(x)); } finally { btn.disabled = false; } });
+  $("print").addEventListener("click", async () => {
+    if (!check()) return;
+    const btn = $("print"); btn.disabled = true;
+    try {
+      const [d, o] = await Promise.all([api(`/admin/reports/${current}?` + qs({ limit: 5000 })), api("/admin/reports/overview?" + qs())]);
+      $("reportArea").innerHTML = `<h1>TransitPass · ${esc(d.title)}</h1><p>Period: ${esc(rangeText(d.range))} (${esc(d.range.period)}) · Generated ${esc(AM.dt(d.generatedAt))} by ${esc(staffUser.name)}</p>
+        <div class="rp-cards">${o.cards.slice(0, 5).map((k) => `<div><strong>${esc(k.value)}</strong><br>${esc(k.label)}</div>`).join("")}</div>
+        <h2>${esc(d.title)}</h2><div class="rp-cards">${d.cards.map((k) => `<div><strong>${esc(k.value)}</strong><br>${esc(k.label)}<br><span>${esc(k.note || "")}</span></div>`).join("")}</div>
+        ${d.note ? `<p>${esc(d.note)}</p>` : ""}<div class="rp-ch">${d.charts.map(chart).join("")}</div>
+        <table>${tableHtml(d.table)}</table>
+        <p>Revenue and discounts count completed transactions only. Cancelled and refunded transactions are shown separately and never counted as collected.</p>`;
+      api(`/admin/reports/${current}/print?` + qs(), { method: "POST" }).catch(() => {});
+      const done = () => { document.body.classList.remove("print-report"); $("reportArea").innerHTML = ""; };
+      window.addEventListener("afterprint", done, { once: true });
+      document.body.classList.add("print-report");
+      window.print();
+    } catch (x) { showToast(errText(x)); } finally { btn.disabled = false; }
+  });
+  AM.tabs($("tabs"), TABS, (id) => { current = id; if (id && $("tbody")) loadReport(); });
+  syncBoxes(); loadOverview();
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

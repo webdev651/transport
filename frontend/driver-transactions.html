@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transaction History · TransitPass</title>
+<meta name="description" content="The rides you scanned, with fares, discounts and status. Only your own transactions appear here.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/driver.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Driver</p>
+      <h1>Transaction History</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">The rides you scanned, with fares, discounts and status. Only your own transactions appear here.</p>
+    </header>
+    <div class="page stack">
+      <section class="dp-kpis" id="kpis"></section>
+      <article class="card dp-in">
+        <div class="dp-filters"><div class="wide"><input id="q" placeholder="Search reference, student or School ID" aria-label="Search transactions" maxlength="60"></div>
+          <select id="status" aria-label="Status"><option value="all">All statuses</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="refunded">Refunded</option></select>
+          <input id="from" type="date" aria-label="From date"><input id="to" type="date" aria-label="To date"></div>
+        <div class="dp-head"><span class="label-caps muted" id="count"></span></div>
+        <div class="table-wrap"><table class="dp-table"><thead><tr><th>Reference</th><th>Date &amp; time</th><th>Student</th><th>Route</th><th class="num">Regular</th><th class="num">Discount</th><th class="num">Fare charged</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div>
+        <div class="row" style="margin-top:1rem;justify-content:center"><button id="more" hidden>Load more</button></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/driver.js"></script>
+<script src="js/offline.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["driver"]))) return;
+  const PAGE = 25, $ = (id) => document.getElementById(id); let offset = 0;
+  const TONE = { completed: "ok", cancelled: "bad", refunded: "info" };
+  function query() { const p = new URLSearchParams({ limit: PAGE, offset }); const q = $("q").value.trim(); if (q) p.set("q", q); if ($("status").value !== "all") p.set("status", $("status").value); if ($("from").value) p.set("from", $("from").value); if ($("to").value) p.set("to", $("to").value); return p.toString(); }
+  const kpi = (cls, icon, l, v, n) => `<article class="card dp-kpi ${cls} dp-in"><div class="ico">${dpIcon(icon)}</div><div><p class="lbl">${l}</p><p class="val">${v}</p><p class="note">${n}</p></div></article>`;
+  async function load(append) {
+    if (!append) offset = 0;
+    const d = await api("/driver/transactions?" + query()), s = d.summary;
+    $("kpis").innerHTML = kpi("ok", "check", "Completed rides", s.completed.count, "excludes cancelled / refunded") + kpi("gold", "peso", "Fares collected", dpMoney(s.completed.revenue), `from ${dpMoney(s.completed.regularFare)} regular fares`) + kpi("", "tag", "Discounts given", dpMoney(s.completed.discounts), "student discount") + kpi("bad", "refund", "Cancelled / refunded", s.cancelled.count + s.refunded.count, `${s.cancelled.count} cancelled · ${s.refunded.count} refunded`);
+    $("count").textContent = `${d.total} transaction${d.total === 1 ? "" : "s"}`;
+    const html = d.items.map((t) => `<tr class="${t.status === "completed" ? "" : "void"}"><td class="mono">${esc(t.reference)}</td><td>${esc(t.date)}<small>${esc(t.time)}</small>${t.offline ? "<small>recorded offline</small>" : ""}</td><td>${esc(t.studentName)}<small class="mono">${esc(t.schoolId)}</small></td><td>${esc(t.route)}</td><td class="num mono">${dpMoney(t.regularFare)}</td><td class="num mono">${t.discountAmount ? "−" + dpMoney(t.discountAmount) + "<small>" + t.discountPercent + "%</small>" : "—"}</td><td class="num mono amt"><b>${dpMoney(t.finalFare)}</b></td><td><span class="dp-st ${TONE[t.status]}">${esc(t.statusLabel)}</span>${t.underReview ? '<small>Flagged for review</small>' : ""}${t.cancelReason ? `<small>${esc(t.cancelReason)}</small>` : ""}</td></tr>`).join("");
+    if (append) $("rows").insertAdjacentHTML("beforeend", html); else $("rows").innerHTML = html || `<tr><td colspan="8">${dpEmpty("tag", "No transactions found", "Rides you scan will appear here.")}</td></tr>`;
+    offset += d.items.length; $("more").hidden = offset >= d.total;
+  }
+  const reload = debounce(() => load(false).catch((e) => showToast(errText(e))));
+  ["q", "status", "from", "to"].forEach((k) => $(k).addEventListener(k === "q" ? "input" : "change", reload));
+  $("more").onclick = (e) => guarded(e.target, () => load(true));
+  if (window.TPOffline && staffUser) TPOffline.start({ driverId: staffUser.id, onSynced: () => load(false).catch(() => {}) });
+  try { await load(false); } catch (e) { showToast(errText(e)); }
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

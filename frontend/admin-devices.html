@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Driver Devices · TransitPass</title>
+<meta name="description" content="Register the devices drivers are allowed to scan with, link them to driver accounts, watch device activity, and remove devices that should not be there.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Driver Devices</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Register the devices drivers are allowed to scan with, link them to driver accounts, watch device activity, and remove devices that should not be there.</p>
+    </header>
+    <div class="page stack">
+      <div class="am-stats" id="stats"></div>
+      <div id="enf"></div>
+      <article class="card">
+        <div id="tabs"></div>
+        <section id="pDev">
+          <div class="am-bar">
+            <div class="grow"><input id="q" placeholder="Search device, identifier or driver" maxlength="60" aria-label="Search devices"></div>
+            <div style="width:150px"><select id="st" aria-label="Status"><option value="all">Active &amp; inactive</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="removed">Removed</option></select></div>
+            <button class="primary" id="addBtn">Register device</button>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Device</th><th>Driver</th><th>Status</th><th>Last seen</th><th>Scans</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table></div>
+          <div class="am-pager" id="pager"></div>
+        </section>
+        <section id="pAct" hidden>
+          <p class="muted" style="font-size:.85rem;margin-top:0">Devices that scanned in the last 72 hours but are not registered to the driver who used them. Register the ones you recognise; investigate the rest.</p>
+          <div class="table-wrap"><table><thead><tr><th>Device identifier</th><th>Driver</th><th>Scans</th><th>Last seen</th><th></th></tr></thead><tbody id="actRows"></tbody></table></div>
+          <h3 style="margin:1.4rem 0 .5rem;font-size:1rem">Refused attempts</h3>
+          <div class="table-wrap"><table><thead><tr><th>Device identifier</th><th>Driver</th><th>Attempts</th><th>Last attempt</th></tr></thead><tbody id="blkRows"></tbody></table></div>
+        </section>
+        <section id="pHist" hidden>
+          <div class="table-wrap"><table><thead><tr><th>When</th><th>Event</th><th>Device</th><th>Driver</th><th>Detail</th><th>By</th></tr></thead><tbody id="histRows"></tbody></table></div>
+          <div class="am-pager" id="histPager"></div>
+        </section>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  let items = [];
+  const loadStats = async () => {
+    const s = await api("/admin/devices/summary");
+    AM.stats($("stats"), [{ label: "Registered", value: s.total }, { label: "Active", value: s.active }, { label: "Inactive", value: s.inactive }, { label: "Unregistered seen", value: s.unregisteredSeen, note: "last 72 hours" }]);
+    $("enf").innerHTML = `<div class="am-note ${s.enforcement ? "" : "am-warn"}">${s.enforcement ? "<strong>Device enforcement is ON.</strong> Drivers can only scan from an active device registered to their account." : "<strong>Device enforcement is OFF.</strong> Unregistered devices can still scan, but their use is recorded here. Turn enforcement on in Settings → Security monitoring once your devices are registered."}</div>`;
+  };
+  async function register(pre = {}) {
+    const drivers = await AM.personOptions("driver");
+    if (!drivers.length) return showToast("Register an active driver first.");
+    await AM.form({ title: "Register device", wide: true, submit: "Register", initial: pre,
+      intro: `The device identifier appears under “Unregistered activity” after the driver scans once. To register the browser you are using now, its id is <span class="mono">${esc(deviceId())}</span>.`,
+      fields: [{ name: "driverId", label: "Driver", type: "select", required: true, options: drivers.map((d) => [d.id, d.name]) }, { name: "identifier", label: "Device identifier", required: true, maxlength: 100, hint: "6-100 letters, numbers or . _ : -" },
+        { name: "name", label: "Device name", required: true, maxlength: 120, placeholder: "Bus 1 tablet" }, { name: "platform", label: "Platform (optional)", maxlength: 60, placeholder: "Android, iPhone, Windows…" }],
+      onSubmit: async (v) => { await api("/admin/devices", { method: "POST", body: { driverId: +v.driverId, identifier: v.identifier.trim(), name: v.name, platform: v.platform || undefined } }); showToast("Device registered."); } });
+    reload();
+  }
+  const reload = () => { list.load(); loadStats(); loadAct(); };
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/devices", empty: "No devices registered yet. Use “Register device”.", params: () => ({ q: $("q").value.trim(), status: $("st").value }), onData: (d) => { items = d.items; },
+    row: (d) => `<tr><td><strong>${esc(d.name)}</strong><br><span class="muted mono" style="font-size:.74rem">${esc(d.identifier)}${d.platform ? " · " + esc(d.platform) : ""}</span></td><td>${esc(d.driver)}</td><td>${AM.badge(d.status)}</td>
+      <td style="font-size:.78rem">${d.lastSeenAt ? esc(AM.dt(d.lastSeenAt)) : '<span class="muted">never</span>'}</td><td class="mono">${d.scansLast24h} today · ${d.scanCount} total</td>
+      <td><div class="am-actions">${d.status === "active" ? `<button data-a="inactive" data-id="${d.id}">Deactivate</button>` : d.status === "inactive" ? `<button class="primary" data-a="active" data-id="${d.id}">Activate</button>` : ""}${d.status !== "removed" ? `<button data-a="remove" data-id="${d.id}">Remove</button>` : ""}<button data-a="hist" data-id="${d.id}">History</button></div></td></tr>`
+  });
+  $("addBtn").onclick = () => register();
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const d = items.find((x) => String(x.id) === b.dataset.id), a = b.dataset.a;
+    if (a === "hist") { const p = AM.panel("History · " + d.name); AM.state(p.body, "loading"); try { const h = await api(`/admin/devices/history?deviceId=${d.id}&limit=100`); p.body.innerHTML = `<ul class="am-tl">${h.items.map((x) => `<li><strong>${esc(AM.label(x.event))}</strong><br><span class="muted">${esc(AM.dt(x.at))} · ${esc(x.by)}</span>${x.detail ? "<br>" + esc(x.detail) : ""}</li>`).join("")}</ul>`; } catch (x) { AM.state(p.body, "error", errText(x)); } return; }
+    if (a === "remove") { await AM.confirm({ title: "Remove device", message: `${esc(d.name)} (${esc(d.driver)}) will no longer be able to scan. It stays in the history.`, confirm: "Remove device", danger: true, reason: { label: "Reason for removing", min: 3 }, run: (v) => api(`/admin/devices/${d.id}/remove`, { method: "POST", body: { reason: v.reason } }) }); return reload(); }
+    await AM.act(b, () => api(`/admin/devices/${d.id}/status`, { method: "POST", body: { status: a } }), `Device ${a === "active" ? "activated" : "deactivated"}.`); reload();
+  });
+  async function loadAct() {
+    try {
+      const d = await api("/admin/devices/activity");
+      $("actRows").innerHTML = d.unregistered.length ? d.unregistered.map((x) => `<tr><td class="mono">${esc(x.identifier)}</td><td>${esc(x.driver)}</td><td class="mono">${x.scans}</td><td style="font-size:.78rem">${esc(AM.dt(x.lastSeenAt))}</td><td><button class="primary" data-reg="${esc(x.identifier)}" data-d="${x.driverId}">Register</button></td></tr>`).join("") : '<tr><td colspan="5"><div class="am-state">No unregistered devices have scanned recently.</div></td></tr>';
+      $("blkRows").innerHTML = d.blocked.length ? d.blocked.map((x) => `<tr><td class="mono">${esc(x.identifier || "(no id sent)")}</td><td>${esc(x.driver || "—")}</td><td class="mono">${x.attempts}</td><td style="font-size:.78rem">${esc(AM.dt(x.lastSeenAt))}</td></tr>`).join("") : '<tr><td colspan="4"><div class="am-state">No refused attempts.</div></td></tr>';
+    } catch (e) { AM.state($("actRows"), "error", errText(e)); }
+  }
+  $("actRows").addEventListener("click", (e) => { const b = e.target.closest("button[data-reg]"); if (b) register({ identifier: b.dataset.reg, driverId: b.dataset.d }); });
+  const hist = AM.list({ tbody: $("histRows"), pagerEl: $("histPager"), path: "/admin/devices/history", empty: "No device events yet.", row: (x) => `<tr><td class="mono" style="font-size:.78rem">${esc(AM.dt(x.at))}</td><td>${AM.badge(["blocked", "removed", "deactivated"].includes(x.event) ? "rejected" : x.event === "unregistered_use" ? "pending" : "active", AM.label(x.event))}</td><td>${esc(x.device || x.identifier || "—")}</td><td>${esc(x.driver || "—")}</td><td>${esc(x.detail || "—")}</td><td>${esc(x.by)}</td></tr>` });
+  $("q").addEventListener("input", debounce(() => list.load(true))); $("st").addEventListener("change", () => list.load(true));
+  AM.tabs($("tabs"), [["dev", "Registered devices"], ["act", "Unregistered activity"], ["hist", "Registration history"]], (id) => { $("pDev").hidden = id !== "dev"; $("pAct").hidden = id !== "act"; $("pHist").hidden = id !== "hist"; if (id === "dev") list.load(true); if (id === "act") loadAct(); if (id === "hist") hist.load(true); });
+  loadStats().catch((e) => showToast(errText(e)));
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Announcements · TransitPass</title>
+<meta name="description" content="Write announcements, schedule them, choose whether students, drivers or both receive them, and switch them off when they are no longer needed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Announcements</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Write announcements, schedule them, choose whether students, drivers or both receive them, and switch them off when they are no longer needed.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div class="am-bar">
+          <div class="grow"><input id="q" placeholder="Search title or text" maxlength="60" aria-label="Search announcements"></div>
+          <div style="width:150px"><select id="st" aria-label="Status"><option value="all">All statuses</option><option value="draft">Draft</option><option value="scheduled">Scheduled</option><option value="published">Published</option><option value="expired">Expired</option><option value="deactivated">Deactivated</option></select></div>
+          <div style="width:150px"><select id="au" aria-label="Audience"><option value="all">All audiences</option><option value="students">Students</option><option value="drivers">Drivers</option></select></div>
+          <button class="primary" id="addBtn">New announcement</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Announcement</th><th>Audience</th><th>Status</th><th>Publish date</th><th>Expires</th><th>Sent</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="am-pager" id="pager"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  let items = [];
+  const AUD = { all: "Students & drivers", students: "Students", drivers: "Drivers" };
+  const fields = (creating) => [{ name: "title", label: "Title", required: true, maxlength: 200 }, { name: "body", label: "Description", type: "textarea", required: true, maxlength: 5000 },
+    { name: "audience", label: "Send to", type: "select", options: [["all", "Students and drivers"], ["students", "Students only"], ["drivers", "Drivers only"]] },
+    { name: "publishAt", label: "Publish date (optional)", type: "datetime-local", hint: "Leave empty to publish by hand. A future date schedules it." }, { name: "expiresAt", label: "Expiration date (optional)", type: "datetime-local", hint: "It disappears for readers after this time." },
+    ...(creating ? [{ name: "publish", label: "When to publish", type: "select", options: [["draft", "Save as draft (or schedule if a publish date is set)"], ["now", "Publish now"]] }] : [])];
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/announcements", empty: "No announcements yet. Use “New announcement”.", params: () => ({ q: $("q").value.trim(), status: $("st").value, audience: $("au").value }), onData: (d) => { items = d.items; },
+    row: (a) => `<tr><td><strong>${esc(a.title)}</strong><br><span class="muted" style="font-size:.78rem">${esc(a.body.length > 110 ? a.body.slice(0, 110) + "…" : a.body)}</span></td><td>${esc(AUD[a.audience])}</td><td>${AM.badge(a.status)}</td>
+      <td style="font-size:.78rem">${esc(AM.dt(a.publishedAt || a.publishAt))}</td><td style="font-size:.78rem">${esc(AM.dt(a.expiresAt))}</td><td style="font-size:.78rem">${a.sentAt ? esc(AM.dt(a.sentAt)) : "—"}</td>
+      <td><div class="am-actions"><button data-a="edit" data-id="${a.id}">Edit</button>${["draft", "scheduled", "deactivated"].includes(a.status) ? `<button class="primary" data-a="publish" data-id="${a.id}">Publish</button>` : ""}${["published", "scheduled"].includes(a.state) && a.status !== "expired" ? `<button data-a="off" data-id="${a.id}">Deactivate</button>` : ""}${a.state === "published" ? `<button data-a="send" data-id="${a.id}">Send again</button>` : ""}<button data-a="del" data-id="${a.id}">Delete</button></div></td></tr>`
+  });
+  const iso = (v) => AM.fromLocalInput(v);
+  $("addBtn").onclick = async () => { await AM.form({ title: "New announcement", wide: true, fields: fields(true), submit: "Save", onSubmit: async (v) => { await api("/admin/announcements", { method: "POST", body: { title: v.title, body: v.body, audience: v.audience, publish: v.publish, publishAt: iso(v.publishAt), expiresAt: iso(v.expiresAt) } }); showToast(v.publish === "now" ? "Announcement published and sent." : "Announcement saved."); } }); list.load(); };
+  $("rows").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const a = items.find((x) => String(x.id) === b.dataset.id), k = b.dataset.a;
+    if (k === "edit") { await AM.form({ title: "Edit announcement", wide: true, fields: fields(false), submit: "Save", initial: { title: a.title, body: a.body, audience: a.audience, publishAt: AM.toLocalInput(a.publishAt), expiresAt: AM.toLocalInput(a.expiresAt) },
+      onSubmit: async (v) => { await api(`/admin/announcements/${a.id}`, { method: "PATCH", body: { title: v.title, body: v.body, audience: v.audience, publishAt: iso(v.publishAt) || null, expiresAt: iso(v.expiresAt) || null } }); showToast("Announcement updated."); } }); return list.load(); }
+    if (k === "publish") { await AM.act(b, () => api(`/admin/announcements/${a.id}/publish`, { method: "POST" }), "Published and sent."); return list.load(); }
+    if (k === "off") { await AM.act(b, () => api(`/admin/announcements/${a.id}/deactivate`, { method: "POST" }), "Announcement deactivated."); return list.load(); }
+    if (k === "send") { await AM.act(b, async () => { const r = (await api(`/admin/announcements/${a.id}/send`, { method: "POST" })).sent; showToast(r.students + r.drivers ? `Sent to ${r.students} student(s) and ${r.drivers} driver(s) who had not received it.` : "Everyone in the audience already has it."); }); return list.load(); }
+    if (k === "del") { await AM.confirm({ title: "Delete announcement", message: `“${esc(a.title)}” and its notification entries will be removed. This cannot be undone.`, confirm: "Delete", danger: true, run: () => api(`/admin/announcements/${a.id}`, { method: "DELETE" }) }); list.load(); }
+  });
+  $("q").addEventListener("input", debounce(() => list.load(true))); ["st", "au"].forEach((id) => $(id).addEventListener("change", () => list.load(true)));
+  list.load();
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Route Management · TransitPass</title>
+<meta name="description" content="Define routes, assign the vehicles and drivers that serve them, and activate or deactivate routes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin-modules.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav"></nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">…</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem"></p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent);margin:0 0 .75rem">Administrator</p>
+      <h1>Route Management</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Define routes, assign the vehicles and drivers that serve them, and activate or deactivate routes.</p>
+    </header>
+    <div class="page stack">
+      <article class="card">
+        <div class="am-bar">
+          <div class="grow"><input id="q" placeholder="Search route name, starting location or destination" maxlength="60" aria-label="Search routes"></div>
+          <div style="width:150px"><select id="st" aria-label="Status"><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+          <button class="primary" id="addBtn">Register route</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Route</th><th>Status</th><th>Vehicles</th><th>Drivers</th><th>Open trips</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="am-pager" id="pager"></div>
+      </article>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin-ui.js"></script>
+<script>
+(async () => {
+  if (!(await requireStaff(["admin"]))) return;
+  const $ = AM.$;
+
+  let items = [];
+  const chips = (arr, kind, rid) => arr.length ? arr.map((x) => `<span class="badge b-${x.status === "active" ? "active" : "pending"}" style="margin:0 .25rem .25rem 0">${esc(x.name)}${x.plateNumber ? " · " + esc(x.plateNumber) : ""} <button data-rm="${kind}" data-r="${rid}" data-t="${x.id}" aria-label="Remove ${esc(x.name)}" style="border:0;background:none;padding:0 0 0 .3rem;cursor:pointer;font-weight:700">&times;</button></span>`).join("") : '<span class="muted">none assigned</span>';
+  const fields = [{ name: "name", label: "Route name", required: true, maxlength: 120, placeholder: "Campus – Downtown" }, { name: "origin", label: "Starting location", required: true, maxlength: 120 },
+    { name: "destination", label: "Destination", required: true, maxlength: 120 }, { name: "description", label: "Description", type: "textarea", maxlength: 500 }];
+  const list = AM.list({
+    tbody: $("rows"), pagerEl: $("pager"), path: "/admin/routes", empty: "No routes yet. Use “Register route”.", params: () => ({ q: $("q").value.trim(), status: $("st").value }),
+    onData: (d) => { items = d.items; },
+    row: (r) => `<tr><td><strong>${esc(r.name)}</strong><br><span style="font-size:.82rem">${esc(r.origin)} → ${esc(r.destination)}</span>${r.description ? `<br><span class="muted" style="font-size:.74rem">${esc(r.description)}</span>` : ""}</td>
+      <td>${AM.badge(r.status)}</td><td>${chips(r.vehicles, "vehicle", r.id)}</td><td>${chips(r.drivers, "driver", r.id)}</td><td class="mono">${r.openTrips}</td>
+      <td><div class="am-actions"><button data-a="edit" data-id="${r.id}">Edit</button><button data-a="vehicle" data-id="${r.id}">Assign vehicle</button><button data-a="driver" data-id="${r.id}">Assign driver</button>
+        ${r.status === "active" ? `<button data-a="inactive" data-id="${r.id}">Deactivate</button>` : `<button class="primary" data-a="active" data-id="${r.id}">Activate</button>`}</div></td></tr>`
+  });
+  $("addBtn").onclick = async () => { await AM.form({ title: "Register route", wide: true, fields, submit: "Register", onSubmit: async (v) => { await api("/admin/routes", { method: "POST", body: v }); showToast("Route registered."); } }); list.load(); };
+  $("rows").addEventListener("click", async (e) => {
+    const rm = e.target.closest("button[data-rm]");
+    if (rm) { if (!confirm("Remove this assignment from the route?")) return; await AM.act(rm, () => api(`/admin/routes/${rm.dataset.r}/${rm.dataset.rm}s/${rm.dataset.t}`, { method: "DELETE" }), "Assignment removed."); return list.load(); }
+    const b = e.target.closest("button[data-a]"); if (!b) return;
+    const r = items.find((x) => String(x.id) === b.dataset.id), a = b.dataset.a;
+    if (a === "edit") { await AM.form({ title: "Edit " + r.name, wide: true, fields, submit: "Save", initial: { name: r.name, origin: r.origin, destination: r.destination, description: r.description || "" }, onSubmit: async (v) => { await api(`/admin/routes/${r.id}`, { method: "PATCH", body: v }); showToast("Route updated."); } }); return list.load(); }
+    if (a === "vehicle" || a === "driver") {
+      const opts = (await AM.personOptions(a)).filter((x) => x.status === "active" && !(a === "vehicle" ? r.vehicles : r.drivers).some((y) => y.id === x.id));
+      if (!opts.length) return showToast(`No ${a}s left to assign.`);
+      await AM.form({ title: `Assign ${a} to ${r.name}`, intro: a === "vehicle" ? "Once a route has assigned vehicles, trips on it can only use those vehicles." : "Once a route has assigned drivers, trips on it can only use those drivers.",
+        fields: [{ name: "id", label: a === "vehicle" ? "Vehicle" : "Driver", type: "select", required: true, options: opts.map((x) => [x.id, x.name + (x.plateNumber ? " · " + x.plateNumber : "")]) }], submit: "Assign",
+        onSubmit: async (v) => { await api(`/admin/routes/${r.id}/${a}s`, { method: "POST", body: a === "vehicle" ? { vehicleId: Number(v.id) } : { driverId: Number(v.id) } }); showToast("Assigned."); } });
+      return list.load();
+    }
+    if (a === "inactive" && !confirm(`Deactivate ${r.name}? No new trips can be created on it.`)) return;
+    await AM.act(b, () => api(`/admin/routes/${r.id}/status`, { method: "POST", body: { status: a } }), `${r.name}: ${a === "active" ? "activated" : "deactivated"}.`); list.load();
+  });
+  $("q").addEventListener("input", debounce(() => list.load(true))); $("st").addEventListener("change", () => list.load(true));
+  list.load();
+
+})();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>

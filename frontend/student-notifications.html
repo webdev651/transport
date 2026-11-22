@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notifications · TransitPass</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/student.css">
+</head>
+<body class="dash">
+<div class="shell" id="shell"></div>
+<template id="tpl">
+
+  <section class="sp-card">
+    <div class="hd"><div class="tabs" id="tabs"><button class="on" data-f="all">All</button><button data-f="unread">Unread <span id="uc"></span></button></div><button class="btn" id="readAll">Mark all as read</button></div>
+    <div id="list"></div><div class="pager" id="pager"></div>
+  </section>
+
+</template>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/student.js"></script>
+<script>
+
+Student.boot({ nav: "notifications", eyebrow: "Updates", title: "Notifications", sub: "Approvals, QR code changes, discount reminders and announcements." }, async () => {
+  const { S, empty, busy, skeleton, ICON } = Student;
+  const $ = (id) => document.getElementById(id);
+  const ICONS = { registration: ICON.profile, qr: ICON.qr, discount: ICON.eligibility, profile: ICON.settings, announcement: ICON.announcement, general: ICON.general };
+  const LABEL = { registration: "Account", qr: "QR code", discount: "Discount", profile: "Profile", announcement: "Announcement", general: "Update" };
+  const PER = 15; let filter = "all", page = 0, items = [];
+  async function load() {
+    $("list").innerHTML = skeleton(4);
+    const d = await S(`/me/notifications?filter=${filter}&limit=${PER}&offset=${page * PER}`); items = d.items;
+    Student.setBadge(d.unread); $("uc").textContent = d.unread ? `(${d.unread})` : ""; $("readAll").disabled = !d.unread;
+    $("list").innerHTML = items.length ? items.map((n, i) => `<div class="nt ${n.read ? "read" : ""}" data-i="${i}" tabindex="0" role="button"><span class="dot" title="${n.read ? "Read" : "Unread"}"></span>
+      <span class="ic"><svg viewBox="0 0 24 24"><path d="${ICONS[n.category] || ICONS.general}"/></svg></span>
+      <div class="body"><p class="t">${esc(n.title)}<span class="tag">${LABEL[n.category] || "Update"}</span></p><p class="m clamp">${esc(n.body)}</p><p class="when">${esc(n.date)} · ${esc(n.time)}</p></div></div>`).join("")
+      : empty(filter === "unread" ? "You are all caught up" : "No notifications yet", filter === "unread" ? "No unread notifications." : "Updates about your account will show up here.");
+    const pages = Math.ceil(d.total / PER);
+    $("pager").innerHTML = pages > 1 ? `<span>Page ${page + 1} of ${pages}</span><span class="btn-row"><button class="btn" id="prev" ${page === 0 ? "disabled" : ""}>Previous</button><button class="btn" id="next" ${page + 1 >= pages ? "disabled" : ""}>Next</button></span>` : "";
+  }
+  await load();
+  $("tabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-f]"); if (!b) return; filter = b.dataset.f; page = 0; $("tabs").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); load(); });
+  $("readAll").onclick = () => busy($("readAll"), async () => { await S("/me/notifications/read-all", { method: "POST" }); await load(); showToast("All notifications marked as read."); });
+  $("pager").addEventListener("click", (e) => { if (e.target.id === "prev") page--; else if (e.target.id === "next") page++; else return; load(); });
+  async function open(el) {
+    const n = items[+el.dataset.i]; if (!n) return;
+    const m = el.querySelector(".m"); m.classList.toggle("clamp");           // tap to expand / collapse the full message
+    if (!n.read) { n.read = true; el.classList.add("read"); try { const r = await S(`/me/notifications/${n.id}/read`, { method: "POST" }); Student.setBadge(r.unread); $("uc").textContent = r.unread ? `(${r.unread})` : ""; $("readAll").disabled = !r.unread; } catch (e) { showToast(errText(e)); } }
+  }
+  $("list").addEventListener("click", (e) => { const el = e.target.closest(".nt"); if (el) open(el); });
+  $("list").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { const el = e.target.closest(".nt"); if (el) { e.preventDefault(); open(el); } } });
+});
+
+</script>
+<script src="js/shell.js"></script>
+</body>
+</html>

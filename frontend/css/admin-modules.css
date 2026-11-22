@@ -1,0 +1,34 @@
+/* Extras for the administrator modules. Everything else (cards, tables, buttons, dialogs, badges, colours) comes from
+   styles.css / dashboard.css so the new pages look exactly like the existing ones. */
+.am-stats{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))}
+.am-stats .card{padding:1rem 1.1rem}
+.am-stats .kpi-value{font-size:1.5rem;margin:.3rem 0 .1rem}
+.am-tabs{display:flex;gap:.35rem;flex-wrap:wrap;border-bottom:1px solid var(--border);margin:0 0 1rem;padding-bottom:.5rem}
+.am-tabs button{border-radius:999px;padding:.4rem .95rem;font-size:.82rem}
+.am-tabs button[aria-selected="true"]{background:var(--navy,#071a3d);color:#fff;border-color:transparent}
+.am-bar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+.am-bar .grow{flex:1;min-width:200px}
+.am-bar select,.am-bar input{min-width:0}
+.am-pager{display:flex;gap:.6rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:.9rem;font-size:.82rem}
+.am-state{padding:1.6rem 1rem;text-align:center;color:var(--muted-foreground,#64748b);font-size:.88rem}
+.am-state.err{color:var(--destructive)}
+.am-spin{display:inline-block;width:1rem;height:1rem;border:2px solid var(--border);border-top-color:var(--accent,#075bdb);border-radius:50%;animation:amspin .7s linear infinite;vertical-align:-.2em;margin-right:.5rem}
+@keyframes amspin{to{transform:rotate(360deg)}}
+.am-actions{display:flex;gap:.35rem;flex-wrap:wrap}
+.am-actions button{padding:.3rem .65rem;font-size:.78rem}
+.am-grid{display:grid;gap:.2rem 1rem;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr))}
+.am-kv{display:grid;grid-template-columns:9rem 1fr;gap:.35rem .9rem;font-size:.85rem;margin:.5rem 0}
+.am-kv dt{color:var(--muted-foreground,#64748b)}.am-kv dd{margin:0;word-break:break-word}
+.am-note{border-left:3px solid var(--accent,#075bdb);background:rgba(7,91,219,.06);padding:.55rem .8rem;border-radius:.4rem;font-size:.84rem;margin:.5rem 0}
+.am-warn{border-left-color:#d97706;background:#fffbeb}
+.am-danger{border-left-color:var(--destructive);background:#fef2f2}
+.am-code{font-family:"JetBrains Mono",monospace;font-size:.78rem;background:#0b1630;color:#dbe7ff;padding:.7rem .9rem;border-radius:.6rem;overflow-x:auto;white-space:pre;margin:.5rem 0}
+.tp-dialog.wide{width:min(46rem,calc(100vw - 1.5rem))}
+.tp-dialog .fgrid{display:grid;gap:0 1rem;grid-template-columns:1fr 1fr}
+.tp-dialog .hint{font-size:.74rem;color:var(--muted-foreground,#64748b);margin:.25rem 0 0}
+.tp-dialog textarea{width:100%;min-height:5.5rem;resize:vertical}
+.am-switch{display:flex;gap:.6rem;align-items:center;padding:.45rem 0}.am-switch input{width:auto}
+.am-tl{list-style:none;margin:.5rem 0;padding:0;border-left:2px solid var(--border)}
+.am-tl li{padding:.2rem 0 .75rem 1rem;position:relative;font-size:.85rem}
+.am-tl li::before{content:"";position:absolute;left:-.4rem;top:.45rem;width:.7rem;height:.7rem;border-radius:50%;background:var(--accent,#075bdb)}
+@media(max-width:640px){.tp-dialog .fgrid{grid-template-columns:1fr}.am-kv{grid-template-columns:1fr}.am-bar .grow{min-width:100%}}

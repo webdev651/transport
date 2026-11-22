@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Account · TransitPass</title>
+<meta name="description" content="Manage your TransitPass driver account — display name, email, username and password.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/motion.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/driver.css">
+</head>
+<body class="dash">
+<div class="shell">
+  <div class="mobile-bar">
+    <button id="navToggle" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span></span><span></span><span></span></button>
+    <div class="brand-mark" style="width:2rem;height:2rem;font-size:.8rem">TP</div>
+    <p style="margin:0;font-family:var(--font-display);font-size:.85rem;font-weight:700">TransitPass</p>
+  </div>
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">TP</div>
+      <div>
+        <p>TransitPass</p>
+        <p class="label-caps muted">Verification &amp; Management System</p>
+      </div>
+      <button id="navClose" class="nav-close" aria-label="Close menu">&times;</button>
+    </div>
+    <nav class="nav">
+      <a href="admin-dashboard.html">Dashboard</a>
+      <a href="verify.html">Verify Pass</a>
+      <a href="students.html">Student Registry</a>
+      <a href="admin-scan-history.html">Scan History</a>
+      <a href="reports.html">Reports</a>
+      <a href="admin-account.html">My Account</a>
+    </nav>
+    <div class="sidebar-foot">
+      <p class="label-caps muted" style="margin:0">Signed in</p>
+      <p id="adminWho" style="margin:.25rem 0 0;font-size:.875rem;font-weight:500">Driver</p>
+      <p class="muted" id="adminNode" style="margin:0;font-size:.75rem">verification.node-04</p>
+      <button id="logout" style="margin-top:.75rem;width:100%">Log out</button>
+    </div>
+  </aside>
+  <main>
+    <header class="hero">
+      <p class="label-caps" style="color:var(--accent)">QR Code-Based Verification & Management System</p>
+      <h1>My Account</h1>
+      <p class="muted" style="margin:.5rem 0 0;max-width:42rem;font-size:.875rem">Update your profile, sign-in username, and password.</p>
+    </header>
+    <div class="page stack">
+      <section class="cols grid">
+        <article class="card">
+          <div class="row" style="align-items:center;margin-bottom:1.25rem">
+            <div class="avatar avatar-lg" id="avatar"></div>
+            <div>
+              <p style="margin:0;font-weight:700;font-size:1.05rem" id="nameHead"></p>
+              <p class="mono muted" style="margin:.15rem 0 0;font-size:.78rem" id="nodeHead"></p>
+            </div>
+          </div>
+          <form id="profileForm">
+            <div class="field"><label for="name">Display name</label><input id="name" required></div>
+            <div class="field"><label for="email">Email</label><input id="email" type="email" required></div>
+            <div class="field"><label for="username">Username</label><input id="username" required></div>
+            <p class="muted" id="profileSaved" style="font-size:.8rem;min-height:1.1rem;margin:0 0 .5rem;color:var(--success)"></p>
+            <button class="primary" type="submit">Save profile</button>
+          </form>
+        </article>
+        <article class="card">
+          <p class="label-caps muted">Change password</p>
+          <form id="passwordForm" style="margin-top:1rem" autocomplete="off">
+            <div class="field"><label for="current">Current password</label><div class="dp-pw"><input id="current" type="password" autocomplete="current-password" required></div></div>
+            <div class="field"><label for="newPass">New password</label><div class="dp-pw"><input id="newPass" type="password" minlength="8" autocomplete="new-password" required></div><div id="meter"></div></div>
+            <div class="field"><label for="confirmPass">Confirm new password</label><div class="dp-pw"><input id="confirmPass" type="password" minlength="8" autocomplete="new-password" required></div><p class="dp-match" id="match"></p></div>
+            <p class="muted" id="passError" role="alert" style="font-size:.8rem;min-height:1.1rem;margin:0 0 .5rem;color:var(--destructive)"></p>
+            <button class="primary" type="submit">Update password</button>
+          </form>
+        </article>
+      </section>
+    </div>
+  </main>
+</div>
+<script src="js/qrcode-gen.js"></script>
+<script src="js/app.js"></script>
+<script src="js/driver.js"></script>
+<script>
+  (async () => {
+    const admin = await requireStaff(["admin", "driver"]);
+    if (!admin) return;
+    function paint(a) {
+      document.getElementById("avatar").textContent = initials(a.name);
+      document.getElementById("nameHead").textContent = a.name;
+      document.getElementById("nodeHead").textContent = a.role === "driver" ? `Driver${a.unit ? " · " + a.unit : ""}` : "Administrator";
+      document.getElementById("name").value = a.name;
+      document.getElementById("email").value = a.email;
+      document.getElementById("username").value = a.username;
+    }
+    paint(admin);
+    dpPasswordToggles();
+    const meter = dpPasswordMeter({ input: document.getElementById("newPass"), confirm: document.getElementById("confirmPass"), mount: document.getElementById("meter"), role: admin.role, username: admin.username });
+
+    document.getElementById("profileForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const s = document.getElementById("profileSaved");
+      s.style.color = "var(--success)"; s.textContent = "";
+      try {
+        const r = await api("/admin/account", { method: "PATCH", body: { name: document.getElementById("name").value, email: document.getElementById("email").value, username: document.getElementById("username").value } });
+        setToken("staff", r.token);
+        paintStaffShell(r.admin); paint(r.admin);
+        s.textContent = "Profile updated.";
+      } catch (ex) { s.style.color = "var(--destructive)"; s.textContent = errText(ex); }
+      setTimeout(() => (s.textContent = ""), 3500);
+    });
+
+    document.getElementById("passwordForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const err = document.getElementById("passError");
+      err.style.color = "var(--destructive)";
+      if (!meter.ok()) { err.textContent = document.getElementById("confirmPass").value !== document.getElementById("newPass").value ? "The new passwords do not match." : "The new password does not meet the requirements listed above."; return; }
+      try {
+        const r = await api("/admin/account/password", { method: "POST", body: {
+          current: document.getElementById("current").value, new: document.getElementById("newPass").value, confirm: document.getElementById("confirmPass").value } });
+        setToken("staff", r.token);   // every other session was signed out; this one continues
+        err.style.color = "var(--success)"; err.textContent = "Password updated. Other devices were signed out.";
+        document.getElementById("passwordForm").reset(); meter.update();
+      } catch (ex) { err.textContent = errText(ex); }
+      setTimeout(() => { err.textContent = ""; }, 4000);
+    });
+  })();
+</script>
+<script src="js/shell.js"></script>
+<script src="js/motion.js"></script>
+</body>
+</html>
